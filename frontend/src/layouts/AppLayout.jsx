@@ -1,6 +1,8 @@
 import { ArrowLeft, Bell, ChartCandlestick, Coins, Gift, History, LayoutDashboard, ListChecks, LogOut, Settings, UserRound, Wallet } from 'lucide-react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
+import { useMockQuery } from '../hooks/useMockQuery';
+import { mockApi } from '../services/mockApi';
 import { classNames } from '../utils/format';
 
 const navItems = [
@@ -120,6 +122,13 @@ function MobileBottomNav() {
 
 function AppHeader({ isMainPage, title }) {
   const navigate = useNavigate();
+  const { data: coupons = [] } = useMockQuery('coupons', mockApi.coupons);
+  const hasActiveCoupons = coupons.some((coupon) => (
+    !coupon.redeemed
+    && coupon.active !== false
+    && (!coupon.expiresAt || new Date(coupon.expiresAt) >= new Date())
+    && Number(coupon.usedCount || 0) < Number(coupon.usageLimit || 1)
+  ));
 
   const goBack = () => {
     if (window.history.state?.idx > 0) {
@@ -137,18 +146,20 @@ function AppHeader({ isMainPage, title }) {
         onClick={() => navigate('/coupons')}
         aria-label="Open coupons"
         title="Coupons"
-        className="grid h-10 w-10 place-items-center rounded-lg border border-line bg-white/[0.06] text-slate-100 transition hover:border-acid/60 hover:bg-acid/10 hover:text-acid"
+        className="relative grid h-10 w-10 place-items-center rounded-lg border border-line bg-white/[0.06] text-slate-100 transition hover:border-acid/60 hover:bg-acid/10 hover:text-acid"
       >
         <Gift size={18} />
+        {hasActiveCoupons && <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full border border-ink bg-acid" />}
       </button>
       <button
         type="button"
         onClick={() => navigate('/notifications')}
         aria-label="Open notifications"
         title="Notifications"
-        className="grid h-10 w-10 place-items-center rounded-lg border border-line bg-white/[0.06] text-slate-100 transition hover:border-acid/60 hover:bg-acid/10 hover:text-acid"
+        className="relative grid h-10 w-10 place-items-center rounded-lg border border-line bg-white/[0.06] text-slate-100 transition hover:border-acid/60 hover:bg-acid/10 hover:text-acid"
       >
         <Bell size={18} />
+        {hasActiveCoupons && <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full border border-ink bg-acid" />}
       </button>
     </div>
   );

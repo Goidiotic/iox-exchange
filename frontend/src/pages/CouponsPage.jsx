@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Clock, Gift, TicketCheck } from 'lucide-react';
+import { useState } from 'react';
 import toast from 'react-hot-toast';
 import Badge from '../components/common/Badge';
 import Button from '../components/common/Button';
@@ -26,7 +27,14 @@ const statusLabelFor = (status) => {
 
 export default function CouponsPage() {
   const queryClient = useQueryClient();
+  const [filter, setFilter] = useState('active');
   const { data = [], isLoading } = useMockQuery('coupons', mockApi.coupons);
+  const coupons = data.map((coupon) => ({ ...coupon, displayStatus: statusFor(coupon) }));
+  const visibleCoupons = coupons.filter((coupon) => {
+    if (filter === 'active') return coupon.displayStatus === 'active';
+    if (filter === 'completed') return coupon.displayStatus === 'redeemed';
+    return ['expired', 'unavailable'].includes(coupon.displayStatus);
+  });
 
   const redeem = async (coupon) => {
     try {
@@ -49,13 +57,25 @@ export default function CouponsPage() {
   return (
     <>
       <PageHeader title="Coupons" eyebrow="Available and redeemed offers" />
+      <div className="mb-4 inline-grid grid-cols-3 rounded-lg border border-line bg-white/[0.04] p-1">
+        {['active', 'completed', 'expired'].map((item) => (
+          <button
+            key={item}
+            type="button"
+            onClick={() => setFilter(item)}
+            className={`rounded-md px-4 py-2 text-sm font-semibold capitalize transition ${filter === item ? 'bg-acid text-ink' : 'text-slate-300 hover:bg-white/10'}`}
+          >
+            {item}
+          </button>
+        ))}
+      </div>
 
-      {data.length === 0 ? (
-        <EmptyState title="No coupons available" body="Global or individually issued coupons will appear here." />
+      {visibleCoupons.length === 0 ? (
+        <EmptyState title={`No ${filter} coupons`} body="Coupons matching this status will appear here." />
       ) : (
         <div className="grid gap-4 lg:grid-cols-3">
-          {data.map((coupon) => {
-            const status = statusFor(coupon);
+          {visibleCoupons.map((coupon) => {
+            const status = coupon.displayStatus;
             const canRedeem = status === 'active';
 
             return (
