@@ -21,6 +21,40 @@ body {
   color: #eef6ff;
 }
 
+.app-mobile-header {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 60;
+  min-height: calc(5rem + env(safe-area-inset-top));
+  padding-top: env(safe-area-inset-top);
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+.app-mobile-content {
+  padding-top: calc(6rem + env(safe-area-inset-top));
+}
+
+@media (min-width: 1024px) {
+  .app-mobile-header {
+    position: sticky !important;
+    top: 0;
+    left: auto;
+    right: auto;
+    z-index: 30;
+    min-height: 4rem;
+    padding-top: 0;
+    transform: none;
+    will-change: auto;
+  }
+
+  .app-mobile-content {
+    padding-top: 1.5rem;
+  }
+}
+
 @layer components {
   .glass {
     @apply border border-line bg-white/[0.055] backdrop-blur-xl shadow-glow;
