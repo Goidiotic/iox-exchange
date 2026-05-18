@@ -20,13 +20,24 @@ export default function PaymentPage() {
   const [transactionId, setTransactionId] = useState('');
   const [buyQuantity, setBuyQuantity] = useState('');
   const { data: order, isLoading } = useMockQuery(['payment-order', orderId], () => mockApi.order(orderId));
+  const timerMs = order?.expiresAt ? Math.max(new Date(order.expiresAt).getTime() - Date.now(), 0) : 15 * 60 * 1000;
+  const paymentTimer = usePreciseCountdown(timerMs);
+
   if (isLoading) return <Skeleton rows={2} />;
+  if (!order) {
+    return (
+      <Card hover={false} className="p-5 text-center">
+        <h2 className="text-lg font-semibold text-white">Order not found</h2>
+        <p className="mt-2 text-sm text-slate-300">This payment order is not available anymore.</p>
+        <Button className="mt-4" onClick={() => navigate('/market')}>Back to Market</Button>
+      </Card>
+    );
+  }
 
   const isPurchaseOrder = order.type === 'buy';
   const maxQuantity = Number(isPurchaseOrder ? order.quantity : order.availableQuantity || order.quantity || 0);
   const selectedQuantity = isPurchaseOrder ? Number(order.quantity || 0) : Number(buyQuantity || maxQuantity);
   const paymentAmount = selectedQuantity * (order.token.price || 0);
-  const paymentTimer = usePreciseCountdown(order.expiresAt ? Math.max(new Date(order.expiresAt).getTime() - Date.now(), 0) : 15 * 60 * 1000);
   const addressSeed = `${order.id.replace(/[^A-Z0-9]/gi, '')}${paymentAmount}${selectedQuantity}${order.token.symbol}`.toUpperCase();
   const paymentAddress = `M3${addressSeed}9X7K4L2Q8P6N5R3T1V0Y`.slice(0, 34);
   const copyPaymentAddress = () => {
