@@ -1,32 +1,70 @@
+import { ArrowDownLeft, ArrowUpRight, BadgeIndianRupee, Gift, ReceiptText } from 'lucide-react';
 import Badge from '../components/common/Badge';
-import Card from '../components/common/Card';
-import FormField from '../components/forms/FormField';
+import EmptyState from '../components/common/EmptyState';
 import PageHeader from '../components/common/PageHeader';
 import Skeleton from '../components/common/Skeleton';
 import { useMockQuery } from '../hooks/useMockQuery';
 import { mockApi } from '../services/mockApi';
+
+const titleFor = (type = '') => {
+  const normalized = String(type).toLowerCase();
+  if (normalized.includes('buy')) return 'BUY';
+  if (normalized.includes('sell')) return 'SELL';
+  if (normalized.includes('reward')) return 'REWARDS';
+  if (normalized.includes('referral') || normalized.includes('commission')) return 'COMMISSION';
+  if (normalized.includes('fee')) return 'FEES';
+  if (normalized.includes('coupon')) return 'REWARDS';
+  if (normalized.includes('refund')) return 'SELL';
+  return normalized ? normalized.toUpperCase() : 'TRANSACTION';
+};
+
+const iconFor = (type = '') => {
+  const normalized = String(type).toLowerCase();
+  if (normalized.includes('buy')) return ArrowDownLeft;
+  if (normalized.includes('sell') || normalized.includes('refund')) return ArrowUpRight;
+  if (normalized.includes('reward') || normalized.includes('coupon')) return Gift;
+  if (normalized.includes('referral') || normalized.includes('commission')) return BadgeIndianRupee;
+  return ReceiptText;
+};
+
+const subtitleFor = (row) => row.subtitle || `${row.type || 'transaction'} ${row.token || ''}`.trim();
+
+function TransactionCard({ row }) {
+  const Icon = iconFor(row.type);
+  return (
+    <article className="flex items-center gap-3 rounded-lg border border-line bg-white/[0.045] p-3">
+      <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-cyanx/15 text-cyanx">
+        <Icon size={20} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 items-center gap-2">
+          <h2 className="truncate text-sm font-semibold text-white">{titleFor(row.type)}</h2>
+          <span className="shrink-0 text-[11px] text-slate-500">{row.date}{row.time ? `, ${row.time}` : ''}</span>
+        </div>
+        <p className="mt-1 truncate text-xs text-slate-400">{subtitleFor(row)}</p>
+        <p className="mt-0.5 truncate font-mono text-[11px] text-slate-600">{row.id}</p>
+      </div>
+      <div className="shrink-0 text-right">
+        <p className="text-sm font-semibold text-white">{row.amount}</p>
+        <Badge status={row.status} className="mt-1 px-2 py-0.5 text-[10px] capitalize">{row.status}</Badge>
+      </div>
+    </article>
+  );
+}
 
 export default function HistoryPage() {
   const { data = [], isLoading } = useMockQuery('history', mockApi.history);
   if (isLoading) return <Skeleton rows={4} />;
   return (
     <>
-      <PageHeader title="Transaction History" eyebrow="Buy, sell, rewards, coupons and referrals" />
-      <Card hover={false}>
-        <div className="mb-4 grid gap-3 sm:grid-cols-[1fr_180px_180px]">
-          <FormField label="Search transaction ID">
-            <input className="field" placeholder="Search transaction ID" />
-          </FormField>
-          <FormField label="Transaction type">
-            <select className="field"><option>All types</option><option>Buy</option><option>Sell</option><option>Reward</option><option>Coupon</option></select>
-          </FormField>
-          <FormField label="Status">
-            <select className="field"><option>All statuses</option><option>Completed</option><option>Pending</option></select>
-          </FormField>
+      <PageHeader title="Transaction History" eyebrow="Buy, sell, rewards, commission and fees" />
+      {data.length === 0 ? (
+        <EmptyState title="No transactions found" body="Your transaction activity will appear here." />
+      ) : (
+        <div className="space-y-3">
+          {data.map((row) => <TransactionCard key={row.id} row={row} />)}
         </div>
-        <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead className="text-slate-500"><tr><th className="py-3">ID</th><th>Type</th><th>Token</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead><tbody>{data.map((row) => <tr className="border-t border-line" key={row.id}><td className="py-3 font-mono">{row.id}</td><td>{row.type}</td><td>{row.token}</td><td>{row.amount}</td><td><Badge status={row.status}>{row.status}</Badge></td><td>{row.date}</td></tr>)}</tbody></table></div>
-        <div className="mt-4 flex justify-end gap-2"><button className="btn-secondary py-2">Previous</button><button className="btn-secondary py-2">Next</button></div>
-      </Card>
+      )}
     </>
   );
 }

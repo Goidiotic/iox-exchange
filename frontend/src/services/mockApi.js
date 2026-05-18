@@ -159,19 +159,23 @@ export const mockApi = {
       id: tx.transactionNo || tx._id,
       type: tx.type,
       token: tx.token?.symbol || tx.tokenSymbol || '-',
+      subtitle: tx.type === 'sell' ? `SELL ${tx.token?.symbol || tx.tokenSymbol || ''}`.trim() : tx.type === 'buy' ? `BUY ${tx.token?.symbol || tx.tokenSymbol || ''}`.trim() : tx.type === 'refund' ? `REFUND ${tx.token?.symbol || tx.tokenSymbol || ''}`.trim() : tx.type,
       amount: tx.amountInr
         ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(tx.amountInr)
         : `${tx.tokenQuantity || 0} ${tx.token?.symbol || ''}`.trim(),
       status: tx.status,
       date: tx.createdAt ? new Date(tx.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-',
+      time: tx.createdAt ? new Date(tx.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '',
     }));
     const orderRows = unwrap(orders).map(normalizeOrder).map((order) => ({
       id: order.id,
       type: order.displayType,
       token: order.token.symbol,
+      subtitle: `${order.displayType === 'sub-sell' ? 'sub-sell' : order.type} ${order.token.symbol}`,
       amount: new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(order.totalAmount || order.amount),
       status: order.status,
       date: order.date,
+      time: '',
     }));
     return [...orderRows, ...txRows];
   },
