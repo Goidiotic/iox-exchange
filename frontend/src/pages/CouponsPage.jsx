@@ -31,7 +31,7 @@ export default function CouponsPage() {
   const redeem = async (coupon) => {
     try {
       await mockApi.redeemCoupon(coupon._id || coupon.id || coupon.code);
-      toast.success('Coupon redeemed');
+      toast.success('Coupon claimed');
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['coupons'] }),
         queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
@@ -80,12 +80,12 @@ export default function CouponsPage() {
 
                 {canRedeem && (
                   <Button className="mt-auto w-full" onClick={() => redeem(coupon)}>
-                    Redeem to Wallet
+                    Claim
                   </Button>
                 )}
                 {!canRedeem && (
                   <div className="mt-auto rounded-lg border border-line bg-white/[0.035] px-4 py-3 text-center text-sm font-medium text-slate-300">
-                    {status === 'redeemed' ? 'Redeemed' : 'Not available'}
+                    {status === 'redeemed' ? 'Claimed' : 'Not available'}
                   </div>
                 )}
               </Card>

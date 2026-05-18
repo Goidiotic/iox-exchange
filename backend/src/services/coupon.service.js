@@ -8,10 +8,22 @@ import { ApiError } from '../utils/apiError.js';
 const nextNo = (prefix) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
 
 export const couponService = {
-  listForUser(user) {
+  async listForUser(user) {
     const now = new Date();
+    const mobile = String(user.mobile || '').replace(/\s+/g, '');
+    const eligibleUserIds = [user._id];
+    if (mobile) {
+      const account = await User.findOne({ mobile }).select('_id');
+      if (account && !eligibleUserIds.some((id) => id.toString() === account._id.toString())) {
+        eligibleUserIds.push(account._id);
+      }
+    }
     return Coupon.find({
-      $or: [{ scope: 'global' }, { users: user._id }],
+      $or: [
+        { scope: 'global' },
+        { users: { $in: eligibleUserIds } },
+        { 'redeemedBy.user': user._id },
+      ],
       $and: [
         {
           $or: [
@@ -51,9 +63,13 @@ export const couponService = {
 
     let users = payload.users || payload.userIds || [];
     if (payload.mobiles?.length) {
-      const normalizedMobiles = payload.mobiles.map((mobile) => String(mobile).replace(/\s+/g, ''));
-      const matchedUsers = await User.find({ mobile: { $in: normalizedMobiles } }).select('_id');
+      const normalizedMobiles = payload.mobiles.map((mobile) => String(mobile).replace(/\s+/g, '')).filter(Boolean);
+      const matchedUsers = await User.find({ mobile: { $in: normalizedMobiles } }).select('_id mobile');
       users = matchedUsers.map((user) => user._id);
+      const missingMobiles = normalizedMobiles.filter((mobile) => !matchedUsers.some((user) => user.mobile === mobile));
+      if (missingMobiles.length) {
+        throw new ApiError(400, `No user found for mobile: ${missingMobiles.join(', ')}`);
+      }
     }
 
     const scope = payload.scope === 'user_specific' || users.length ? 'user_specific' : 'global';
