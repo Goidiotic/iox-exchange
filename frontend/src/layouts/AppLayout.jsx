@@ -130,6 +130,29 @@ function AppHeader({ isMainPage, title }) {
     navigate('/');
   };
 
+  const headerActions = (
+    <div className="ml-3 flex shrink-0 items-center gap-2">
+      <button
+        type="button"
+        onClick={() => navigate('/coupons')}
+        aria-label="Open coupons"
+        title="Coupons"
+        className="grid h-10 w-10 place-items-center rounded-lg border border-line bg-white/[0.06] text-slate-100 transition hover:border-acid/60 hover:bg-acid/10 hover:text-acid"
+      >
+        <Gift size={18} />
+      </button>
+      <button
+        type="button"
+        onClick={() => navigate('/notifications')}
+        aria-label="Open notifications"
+        title="Notifications"
+        className="grid h-10 w-10 place-items-center rounded-lg border border-line bg-white/[0.06] text-slate-100 transition hover:border-acid/60 hover:bg-acid/10 hover:text-acid"
+      >
+        <Bell size={18} />
+      </button>
+    </div>
+  );
+
   return (
     <header className="app-mobile-header flex items-center justify-between border-b border-line bg-ink/95 px-4 backdrop-blur-xl sm:px-6 lg:sticky lg:inset-x-auto lg:h-16 lg:bg-ink/75">
       {isMainPage ? (
@@ -142,19 +165,23 @@ function AppHeader({ isMainPage, title }) {
             </div>
           </div>
           <div className="hidden text-sm text-slate-400 lg:block">Fixed-price internal tokens. No blockchain rails.</div>
+          {headerActions}
         </>
       ) : (
-        <div className="flex min-w-0 items-center gap-3">
-          <button
-            type="button"
-            onClick={goBack}
-            aria-label="Go back"
-            className="grid h-9 w-10 shrink-0 place-items-center rounded-lg border border-line bg-white/[0.06] text-slate-100 transition hover:border-acid/60 hover:bg-acid/10 hover:text-acid"
-          >
-            <ArrowLeft size={18} />
-          </button>
-          <h1 className="truncate text-base font-semibold text-white sm:text-lg">{title}</h1>
-        </div>
+        <>
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              type="button"
+              onClick={goBack}
+              aria-label="Go back"
+              className="grid h-9 w-10 shrink-0 place-items-center rounded-lg border border-line bg-white/[0.06] text-slate-100 transition hover:border-acid/60 hover:bg-acid/10 hover:text-acid"
+            >
+              <ArrowLeft size={18} />
+            </button>
+            <h1 className="truncate text-base font-semibold text-white sm:text-lg">{title}</h1>
+          </div>
+          {headerActions}
+        </>
       )}
     </header>
   );
