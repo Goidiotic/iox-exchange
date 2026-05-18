@@ -105,7 +105,7 @@ function MobileBottomNav() {
             className={({ isActive }) =>
               classNames(
                 'flex h-14 flex-col items-center justify-center gap-1 rounded-lg text-[11px] font-medium transition',
-                isActive ? 'bg-acid text-ink' : 'text-slate-400 hover:bg-white/10 hover:text-white',
+                isActive ? 'text-acid' : 'text-slate-400 hover:text-white',
               )
             }
           >
