@@ -15,7 +15,13 @@ const formatDate = (value) => (value ? new Date(value).toLocaleDateString('en-IN
 const statusFor = (coupon) => {
   if (coupon.redeemed) return 'redeemed';
   if (!coupon.active || new Date(coupon.expiresAt) < new Date()) return 'expired';
+  if (Number(coupon.usedCount || 0) >= Number(coupon.usageLimit || 1)) return 'unavailable';
   return 'active';
+};
+
+const statusLabelFor = (status) => {
+  if (status === 'unavailable') return 'fully used';
+  return status;
 };
 
 export default function CouponsPage() {
@@ -26,7 +32,13 @@ export default function CouponsPage() {
     try {
       await mockApi.redeemCoupon(coupon._id || coupon.id || coupon.code);
       toast.success('Coupon redeemed');
-      queryClient.invalidateQueries({ queryKey: ['coupons'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['coupons'] }),
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
+        queryClient.invalidateQueries({ queryKey: ['history'] }),
+        queryClient.invalidateQueries({ queryKey: ['account-wallet-summary'] }),
+        queryClient.invalidateQueries({ queryKey: ['market-wallet-summary'] }),
+      ]);
     } catch (error) {
       toast.error(error.message || 'Unable to redeem coupon');
     }
@@ -47,12 +59,12 @@ export default function CouponsPage() {
             const canRedeem = status === 'active';
 
             return (
-              <Card key={coupon._id || coupon.code} hover={false} className="flex min-h-56 flex-col p-5">
+              <Card key={coupon._id || coupon.code} hover={false} className="flex min-h-64 flex-col p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="grid h-11 w-11 place-items-center rounded-lg bg-acid text-ink">
                     {coupon.redeemed ? <TicketCheck size={21} /> : <Gift size={21} />}
                   </div>
-                  <Badge status={status}>{status}</Badge>
+                  <Badge status={status}>{statusLabelFor(status)}</Badge>
                 </div>
 
                 <h2 className="mt-5 text-xl font-semibold text-white">{coupon.code}</h2>
@@ -62,6 +74,7 @@ export default function CouponsPage() {
                 <div className="mt-4 grid gap-2 text-sm text-slate-400">
                   <p>Type: <span className="capitalize text-slate-200">{coupon.scope === 'user_specific' ? 'Individual' : 'Global'}</span></p>
                   <p>Token amount: <span className="text-slate-200">{coupon.value || 0} {coupon.token?.symbol || 'COIN'}</span></p>
+                  <p>Usage: <span className="text-slate-200">{coupon.usedCount || 0}/{coupon.usageLimit || 1}</span></p>
                   <p className="flex items-center gap-2"><Clock size={15} />Valid till {formatDate(coupon.expiresAt)}</p>
                 </div>
 
@@ -69,6 +82,11 @@ export default function CouponsPage() {
                   <Button className="mt-auto w-full" onClick={() => redeem(coupon)}>
                     Redeem to Wallet
                   </Button>
+                )}
+                {!canRedeem && (
+                  <div className="mt-auto rounded-lg border border-line bg-white/[0.035] px-4 py-3 text-center text-sm font-medium text-slate-300">
+                    {status === 'redeemed' ? 'Redeemed' : 'Not available'}
+                  </div>
                 )}
               </Card>
             );

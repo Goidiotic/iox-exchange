@@ -11,10 +11,19 @@ export const couponService = {
   listForUser(user) {
     const now = new Date();
     return Coupon.find({
-      active: true,
-      startsAt: { $lte: now },
-      expiresAt: { $gte: now },
       $or: [{ scope: 'global' }, { users: user._id }],
+      $and: [
+        {
+          $or: [
+            {
+              active: true,
+              startsAt: { $lte: now },
+              expiresAt: { $gte: now },
+            },
+            { 'redeemedBy.user': user._id },
+          ],
+        },
+      ],
     })
       .populate('users token', 'mobile uid name symbol fixedPrice')
       .sort({ expiresAt: 1 })
