@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import Badge from '../components/common/Badge';
 import Button from '../components/common/Button';
 import FormField from '../components/forms/FormField';
+import PageHeader from '../components/common/PageHeader';
 import Skeleton from '../components/common/Skeleton';
 import { TOKENS } from '../constants/tokens';
 import { useMockQuery } from '../hooks/useMockQuery';
@@ -74,10 +75,7 @@ export default function MarketPage() {
   return (
     <div className="overflow-x-hidden">
       <div className="mb-5 space-y-4">
-        <div>
-          <p className="text-xl font-black uppercase leading-tight text-acid">BUY {token.symbol} USING M3 WALLET</p>
-          <h1 className="mt-2 text-2xl font-semibold text-white">Market</h1>
-        </div>
+        <PageHeader title="Market" eyebrow={`BUY ${token.symbol} USING M3 WALLET`} />
         <div className="flex w-fit items-center justify-start gap-2">
           {['all', 'small', 'large'].map((filter) => (
             <button
