@@ -22,7 +22,10 @@ const normalizeBalance = (token, balance) => ({
   rewards: balance?.rewards ?? 0,
 });
 
-const normalizeStatus = (status = 'pending') => status.replaceAll('_', ' ');
+const normalizeStatus = (status = 'pending') => {
+  const normalized = status.replaceAll('_', ' ');
+  return normalized === 'under review' ? 'processing' : normalized;
+};
 
 const getTimeMeta = (order, status) => {
   const normalizedStatus = normalizeStatus(status);

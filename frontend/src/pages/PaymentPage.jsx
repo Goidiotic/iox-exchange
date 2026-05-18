@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ShieldCheck } from 'lucide-react';
+import { Copy, QrCode, ShieldCheck, Wallet } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useNavigate, useParams } from 'react-router-dom';
 import Button from '../components/common/Button';
@@ -8,6 +8,7 @@ import FormField from '../components/forms/FormField';
 import PageHeader from '../components/common/PageHeader';
 import Skeleton from '../components/common/Skeleton';
 import { useMockQuery } from '../hooks/useMockQuery';
+import { usePreciseCountdown } from '../hooks/usePreciseCountdown';
 import { mockApi } from '../services/mockApi';
 import { useTradingStore } from '../stores/tradingStore';
 import { formatINR } from '../utils/format';
@@ -25,9 +26,17 @@ export default function PaymentPage() {
   const maxQuantity = Number(isPurchaseOrder ? order.quantity : order.availableQuantity || order.quantity || 0);
   const selectedQuantity = isPurchaseOrder ? Number(order.quantity || 0) : Number(buyQuantity || maxQuantity);
   const paymentAmount = selectedQuantity * (order.token.price || 0);
+  const paymentTimer = usePreciseCountdown(order.expiresAt ? Math.max(new Date(order.expiresAt).getTime() - Date.now(), 0) : 15 * 60 * 1000);
+  const addressSeed = `${order.id.replace(/[^A-Z0-9]/gi, '')}${paymentAmount}${selectedQuantity}${order.token.symbol}`.toUpperCase();
+  const paymentAddress = `M3${addressSeed}9X7K4L2Q8P6N5R3T1V0Y`.slice(0, 34);
+  const copyPaymentAddress = () => {
+    navigator.clipboard?.writeText(paymentAddress);
+    toast.success('Payment address copied');
+  };
+
   const submitPayment = async () => {
     if (!transactionId.trim()) {
-      toast.error('Enter payment reference details');
+      toast.error('Enter the transaction ID');
       return;
     }
     if (!selectedQuantity || selectedQuantity <= 0 || selectedQuantity > maxQuantity) {
@@ -36,8 +45,8 @@ export default function PaymentPage() {
     }
 
     const buyOrder = await mockApi.submitPayment(order.id, { transactionId });
-    setOrderStatus(buyOrder.id, 'under review', 3 * 60 * 1000);
-    toast.success('Payment details submitted for admin approval');
+    setOrderStatus(buyOrder.id, 'processing', 3 * 60 * 1000);
+    toast.success('Payment submitted. Order moved to processing');
     navigate(`/orders/${buyOrder.id}`);
   };
 
@@ -45,19 +54,42 @@ export default function PaymentPage() {
     <>
       <PageHeader
         title="Payment Verification"
-        eyebrow="Manual approval"
-        action={<span className="text-sm font-semibold text-warn">Admin review required</span>}
+        eyebrow="Payment settlement"
+        action={<span className={`font-mono text-sm font-semibold ${paymentTimer.expired ? 'text-red-300' : 'text-warn'}`}>Pay within {paymentTimer.label}</span>}
       />
       <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
         <Card hover={false} className="p-5">
-          <div className="grid min-h-80 place-items-center rounded-lg border border-dashed border-cyanx/40 bg-cyanx/10 p-5 text-center">
-            <div>
-              <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-acid/15 text-acid">
-                <ShieldCheck size={30} />
+          <div className="grid gap-4">
+            <div className="grid aspect-square place-items-center rounded-lg border border-dashed border-cyanx/40 bg-cyanx/10 p-5">
+              <div className="text-center">
+                <div className="mx-auto grid h-40 w-40 place-items-center rounded-lg border border-line bg-white p-3 text-ink">
+                  <div className="grid h-full w-full grid-cols-5 gap-1">
+                    {Array.from({ length: 25 }).map((_, index) => (
+                      <span
+                        key={index}
+                        className={index % 2 === 0 || [6, 8, 16, 18].includes(index) ? 'rounded-sm bg-ink' : 'rounded-sm bg-slate-200'}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <p className="mt-4 flex items-center justify-center gap-2 text-sm font-semibold text-white">
+                  <QrCode size={16} /> Scan to Pay
+                </p>
+                <p className="mt-2 text-2xl font-semibold">{formatINR(paymentAmount)}</p>
               </div>
-              <p className="mt-5 text-sm font-semibold uppercase text-acid">Test payment mode</p>
-              <h2 className="mt-2 text-3xl font-semibold text-white">{formatINR(paymentAmount)}</h2>
-              <p className="mt-3 max-w-sm text-sm text-slate-300">Enter buyer payment reference details below. Admin approval will complete the buyer order and the matched seller order.</p>
+            </div>
+
+            <div className="rounded-lg border border-line bg-white/[0.04] p-4">
+              <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-white">
+                <Wallet size={16} className="text-acid" />
+                Receiving address
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <p className="min-w-0 flex-1 break-all rounded-lg bg-black/30 px-3 py-2 font-mono text-sm text-slate-200">{paymentAddress}</p>
+                <Button type="button" variant="secondary" onClick={copyPaymentAddress} className="shrink-0">
+                  <Copy size={16} /> Copy
+                </Button>
+              </div>
             </div>
           </div>
         </Card>
@@ -79,22 +111,22 @@ export default function PaymentPage() {
                 <strong className="text-white">{formatINR(paymentAmount)}</strong>
               </div>
             </div>
-            <FormField label="Payment reference details">
+            <FormField label="Transaction ID">
               <input
                 className="field"
                 value={transactionId}
                 onChange={(event) => setTransactionId(event.target.value)}
-                placeholder="UTR, bank reference, note, or test reference"
+                placeholder="Transaction ID"
               />
             </FormField>
             <div className="panel p-4 text-sm text-slate-300">
               <p className="flex items-center gap-2 font-semibold text-white">
                 <ShieldCheck size={16} className="text-acid" />
-                Admin payment approval
+                Payment verification
               </p>
-              <p className="mt-2">After submission, this buy order appears in the admin panel. When admin approves it, coins are credited to the buyer and the matched seller order is completed.</p>
+              <p className="mt-2">Pay the exact INR amount to the receiving address, then enter the transaction ID. Your order will move to processing after submission.</p>
             </div>
-            <Button className="w-full" onClick={submitPayment}>Submit for Approval</Button>
+            <Button className="w-full" onClick={submitPayment}>I have paid</Button>
           </div>
         </Card>
       </div>
