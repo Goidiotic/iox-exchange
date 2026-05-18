@@ -4,7 +4,7 @@ import { Token } from '../models/Token.js';
 import { logger } from './logger.js';
 
 const defaults = [
-  { name: 'VLX Token', symbol: 'VLX', fixedPrice: 75, rewardPercentage: 2.4, logo: 'VL', active: true },
+  { name: 'Default Coin', symbol: 'COIN', fixedPrice: 1, rewardPercentage: 2.4, logo: 'CO', active: true },
 ];
 
 const run = async () => {

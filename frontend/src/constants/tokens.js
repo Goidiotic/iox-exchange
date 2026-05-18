@@ -1,12 +1,12 @@
 export const TOKENS = [
   {
-    id: 'vlx',
-    name: 'VLX Token',
-    symbol: 'VLX',
-    price: 75,
-    balance: 1000,
+    id: 'coin',
+    name: 'Default Coin',
+    symbol: 'COIN',
+    price: 1,
+    balance: 0,
     rewardAmount: 15,
-    logo: 'VL',
+    logo: 'CO',
     color: 'from-acid to-cyanx',
   },
 ];

@@ -11,6 +11,8 @@ import { referralController } from '../controllers/referral.controller.js';
 import { transactionController } from '../controllers/transaction.controller.js';
 import { notificationController } from '../controllers/notification.controller.js';
 import { autoSellController } from '../controllers/autoSell.controller.js';
+import { platformSettingsService } from '../services/platformSettings.service.js';
+import { ok } from '../utils/apiResponse.js';
 
 const router = Router();
 
@@ -27,6 +29,13 @@ router.get('/referrals/history', referralController.history);
 router.get('/transactions', transactionController.list);
 router.get('/notifications', notificationController.list);
 router.patch('/notifications/:id/read', notificationController.markRead);
+router.get('/settings', async (req, res, next) => {
+  try {
+    ok(res, await platformSettingsService.get());
+  } catch (error) {
+    next(error);
+  }
+});
 router.post('/auto-sell/otp', autoSellController.requestOtp);
 router.patch('/auto-sell', autoSellController.toggle);
 router.use('/admin', adminRoutes);

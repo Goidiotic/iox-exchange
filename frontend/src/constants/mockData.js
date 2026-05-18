@@ -1,12 +1,12 @@
 import { TOKENS } from './tokens';
 
-const VLX = TOKENS[0];
+const COIN = TOKENS[0];
 
 export const marketOrders = [
   {
     id: 'ORD-78421',
     seller: 'NeoDesk',
-    token: VLX,
+    token: COIN,
     quantity: 120,
     amount: 9000,
     rewardAmount: 15,
@@ -20,7 +20,7 @@ export const marketOrders = [
   {
     id: 'ORD-78424',
     seller: 'QuickPay',
-    token: VLX,
+    token: COIN,
     quantity: 40,
     amount: 3000,
     rewardAmount: 15,
@@ -34,7 +34,7 @@ export const marketOrders = [
   {
     id: 'ORD-78425',
     seller: 'NovaSettle',
-    token: VLX,
+    token: COIN,
     quantity: 75,
     amount: 5625,
     rewardAmount: 15,
@@ -48,7 +48,7 @@ export const marketOrders = [
   {
     id: 'ORD-78422',
     seller: 'BlueMint',
-    token: VLX,
+    token: COIN,
     quantity: 250,
     amount: 18750,
     rewardAmount: 15,
@@ -62,7 +62,7 @@ export const marketOrders = [
   {
     id: 'ORD-78426',
     seller: 'MintDesk',
-    token: VLX,
+    token: COIN,
     quantity: 180,
     amount: 13500,
     rewardAmount: 15,
@@ -76,7 +76,7 @@ export const marketOrders = [
   {
     id: 'ORD-78427',
     seller: 'RupeeFlow',
-    token: VLX,
+    token: COIN,
     quantity: 320,
     amount: 24000,
     rewardAmount: 15,
@@ -90,7 +90,7 @@ export const marketOrders = [
   {
     id: 'ORD-78423',
     seller: 'Alpha INR',
-    token: VLX,
+    token: COIN,
     quantity: 500,
     amount: 37500,
     rewardAmount: 15,
@@ -104,7 +104,7 @@ export const marketOrders = [
   {
     id: 'ORD-78428',
     seller: 'PrimeINR',
-    token: VLX,
+    token: COIN,
     quantity: 650,
     amount: 48750,
     rewardAmount: 15,
@@ -118,7 +118,7 @@ export const marketOrders = [
   {
     id: 'ORD-78429',
     seller: 'SettleX',
-    token: VLX,
+    token: COIN,
     quantity: 900,
     amount: 67500,
     rewardAmount: 15,
@@ -132,7 +132,7 @@ export const marketOrders = [
   {
     id: 'ORD-78430',
     seller: 'VaultTrade',
-    token: VLX,
+    token: COIN,
     quantity: 1200,
     amount: 90000,
     rewardAmount: 15,
@@ -150,7 +150,7 @@ export const userOrders = [
     id: 'BUY-91024',
     transactionId: 'TXN-101',
     type: 'buy',
-    token: VLX,
+    token: COIN,
     quantity: 250,
     amount: 18750,
     status: 'completed',
@@ -163,7 +163,7 @@ export const userOrders = [
     id: 'SELL-62018',
     transactionId: 'TXN-102',
     type: 'sell',
-    token: VLX,
+    token: COIN,
     quantity: 500,
     amount: 37500,
     status: 'awaiting payment',
@@ -176,7 +176,7 @@ export const userOrders = [
     id: 'BUY-88412',
     transactionId: 'TXN-097',
     type: 'buy',
-    token: VLX,
+    token: COIN,
     quantity: 120,
     amount: 9000,
     status: 'processing',
@@ -189,7 +189,7 @@ export const userOrders = [
     id: 'BUY-55210',
     transactionId: 'TXN-109',
     type: 'buy',
-    token: VLX,
+    token: COIN,
     quantity: 80,
     amount: 6000,
     status: 'awaiting payment',
@@ -203,7 +203,7 @@ export const userOrders = [
     id: 'SELL-44780',
     transactionId: 'TXN-110',
     type: 'sell',
-    token: VLX,
+    token: COIN,
     quantity: 160,
     amount: 12000,
     status: 'processing',
@@ -217,7 +217,7 @@ export const userOrders = [
     id: 'BUY-33742',
     transactionId: 'TXN-111',
     type: 'buy',
-    token: VLX,
+    token: COIN,
     quantity: 60,
     amount: 4500,
     status: 'under review',
@@ -230,7 +230,7 @@ export const userOrders = [
     id: 'SELL-75802',
     transactionId: 'TXN-112',
     type: 'sell',
-    token: VLX,
+    token: COIN,
     quantity: 90,
     amount: 6750,
     status: 'cancelled',
@@ -243,7 +243,7 @@ export const userOrders = [
     id: 'SELL-90418',
     transactionId: 'TXN-113',
     type: 'sell',
-    token: VLX,
+    token: COIN,
     quantity: 210,
     amount: 15750,
     status: 'completed',
@@ -255,28 +255,28 @@ export const userOrders = [
 ];
 
 export const activities = [
-  'Bought 250 VLX through M3 Wallet settlement',
-  'Reward credited for VLX Token order',
+  'Bought 250 COIN through M3 Wallet settlement',
+  'Reward credited for COIN Token order',
   'Referral rebate received from L1 user',
-  'Coupon FT-BOOST is active for Fast Track',
+  'Coupon FT-BOOST is active for Quick Sell',
 ];
 
 export const coupons = [
-  { code: 'FT-BOOST', title: 'Fast Track Fee Saver', expiry: '2026-06-14', status: 'active' },
+  { code: 'FT-BOOST', title: 'Quick Sell Fee Saver', expiry: '2026-06-14', status: 'active' },
   { code: 'REWARDX', title: 'Reward Booster', expiry: '2026-05-28', status: 'active' },
-  { code: 'NEWVLX', title: 'New Trader Bonus', expiry: '2026-04-19', status: 'expired' },
+  { code: 'NEWCOIN', title: 'New Trader Bonus', expiry: '2026-04-19', status: 'expired' },
 ];
 
 export const historyRows = [
-  { id: 'TXN-101', type: 'Buy', token: 'VLX', amount: 'INR 18,750', status: 'completed', date: '10 May 2026' },
-  { id: 'TXN-102', type: 'Sell', token: 'VLX', amount: 'INR 37,500', status: 'pending', date: '09 May 2026' },
-  { id: 'TXN-103', type: 'Reward', token: 'VLX', amount: 'INR 450', status: 'completed', date: '08 May 2026' },
+  { id: 'TXN-101', type: 'Buy', token: 'COIN', amount: 'INR 18,750', status: 'completed', date: '10 May 2026' },
+  { id: 'TXN-102', type: 'Sell', token: 'COIN', amount: 'INR 37,500', status: 'pending', date: '09 May 2026' },
+  { id: 'TXN-103', type: 'Reward', token: 'COIN', amount: 'INR 450', status: 'completed', date: '08 May 2026' },
   { id: 'TXN-104', type: 'Referral', token: '-', amount: 'INR 440', status: 'completed', date: '07 May 2026' },
 ];
 
 export const notifications = [
   { title: 'Payment verification pending', body: 'Submit the M3 Wallet transaction ID before timer expiry.', type: 'wallet' },
-  { title: 'Reward credited', body: 'VLX reward of INR 15 was added to your wallet ledger.', type: 'reward' },
+  { title: 'Reward credited', body: 'COIN reward of INR 15 was added to your wallet ledger.', type: 'reward' },
   { title: 'Coupon expiring soon', body: 'FT-BOOST expires in 35 days.', type: 'coupon' },
   { title: 'Referral rebate received', body: 'L2 activity generated a new rebate.', type: 'referral' },
 ];
@@ -297,7 +297,7 @@ export const supportTickets = [
   },
   {
     id: 'TKT-10064',
-    subject: 'VLX sell order reward',
+    subject: 'COIN sell order reward',
     category: 'Rewards',
     priority: 'Medium',
     status: 'in_review',
@@ -322,3 +322,4 @@ export const supportTickets = [
     ],
   },
 ];
+

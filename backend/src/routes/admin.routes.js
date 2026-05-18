@@ -8,6 +8,8 @@ const router = Router();
 
 router.use(authorize('admin', 'super_admin'));
 router.get('/users', adminController.users);
+router.get('/settings', adminController.settings);
+router.patch('/settings', adminController.updateSettings);
 router.post('/tokens', tokenRules, validateRequest, adminController.upsertToken);
 router.get('/coupons', adminController.coupons);
 router.post('/coupons', adminController.createCoupon);

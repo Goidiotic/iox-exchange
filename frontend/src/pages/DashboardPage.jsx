@@ -22,7 +22,7 @@ const actions = [
 
 const banners = [
   {
-    title: 'Trade VLX instantly',
+    title: 'Trade instantly',
     body: 'Buy and sell with M3 Wallet settlement support.',
     image: 'https://images.unsplash.com/photo-1642790551116-18e150f248e1?auto=format&fit=crop&w=1200&q=80',
   },
@@ -33,12 +33,12 @@ const banners = [
   },
   {
     title: 'Manage wallet flow',
-    body: 'Keep your VLX balance and wallet activity easy to scan.',
+    body: 'Keep your coin balance and wallet activity easy to scan.',
     image: 'https://images.unsplash.com/photo-1621761191319-c6fb62004040?auto=format&fit=crop&w=1200&q=80',
   },
 ];
 
-function BannerSlider({ balance }) {
+function BannerSlider({ token }) {
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
@@ -66,9 +66,11 @@ function BannerSlider({ balance }) {
               <div className="absolute inset-0 bg-gradient-to-r from-ink via-ink/70 to-ink/10" />
               <div className="relative flex h-full max-w-xl flex-col justify-end p-5 sm:p-6">
                 <p className="text-xs font-semibold uppercase text-acid">IOX Exchange</p>
-                <h2 className="mt-2 max-w-[18rem] text-2xl font-semibold text-white sm:text-3xl">{banner.title}</h2>
+                <h2 className="mt-2 max-w-[18rem] text-2xl font-semibold text-white sm:text-3xl">
+                  {banner.title === 'Trade instantly' ? `Trade ${token.symbol} instantly` : banner.title}
+                </h2>
                 <p className="mt-2 max-w-[20rem] text-sm text-slate-300">{banner.body}</p>
-                <p className="mt-4 text-xl font-semibold text-white">{balance.toLocaleString('en-IN')} VLX</p>
+                <p className="mt-4 text-xl font-semibold text-white">{token.balance.toLocaleString('en-IN')} {token.symbol}</p>
               </div>
             </div>
           ))}
@@ -107,7 +109,7 @@ function PendingOrderRow({ order, index }) {
             <p className="font-semibold text-white">{side} {order.token.symbol}</p>
             <Badge status={order.status}>{order.status}</Badge>
           </div>
-          <p className="mt-1 truncate text-sm text-slate-400">{order.counterparty} - {order.quantity} VLX</p>
+          <p className="mt-1 truncate text-sm text-slate-400">{order.counterparty} - {order.quantity} {order.token.symbol}</p>
         </div>
         <div className="text-right">
           <p className="font-semibold">{formatINR(order.amount)}</p>
@@ -145,7 +147,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-5 overflow-x-hidden">
-      <BannerSlider balance={nativeToken.balance} />
+      <BannerSlider token={nativeToken} />
 
       <div className="grid grid-cols-4 gap-2">
         {actions.map((action) => (
@@ -177,7 +179,7 @@ export default function DashboardPage() {
       <section>
         <div className="mb-3 flex items-center justify-between">
           <div>
-            <h2 className="font-semibold text-white">Pending orders</h2>
+            <h2 className="font-semibold text-white">Active Orders</h2>
             <p className="text-sm text-slate-500">Your buy and sell orders awaiting completion</p>
           </div>
           <Link to="/orders" className="text-sm font-medium text-cyanx hover:text-acid">View all</Link>
@@ -186,7 +188,7 @@ export default function DashboardPage() {
         {ordersLoading ? (
           <Skeleton rows={3} />
         ) : pendingOrders.length === 0 ? (
-          <EmptyState title="No pending orders" body="Your active buy or sell orders will appear here." />
+          <EmptyState title="No active orders" body="Your active buy or sell orders will appear here." />
         ) : (
           <div className="space-y-3">
             {pendingOrders.slice(0, 5).map((order, index) => <PendingOrderRow key={order.id} order={order} index={index} />)}

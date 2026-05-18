@@ -52,11 +52,13 @@ export const couponService = {
 
     let token = payload.tokenId
       ? await Token.findById(payload.tokenId)
-      : await Token.findOne({ symbol: (payload.tokenSymbol || 'VLX').toUpperCase(), active: true });
-    if (!token && !payload.tokenId && (payload.tokenSymbol || 'VLX').toUpperCase() === 'VLX') {
+      : payload.tokenSymbol
+        ? await Token.findOne({ symbol: payload.tokenSymbol.toUpperCase(), active: true })
+        : await Token.findOne({ active: true }).sort({ createdAt: 1 });
+    if (!token && !payload.tokenId) {
       token = await Token.findOneAndUpdate(
-        { symbol: 'VLX' },
-        { name: 'VLX Token', symbol: 'VLX', fixedPrice: 75, rewardPercentage: 2.4, logo: 'VL', active: true },
+        { symbol: 'COIN' },
+        { name: 'Default Coin', symbol: 'COIN', fixedPrice: 1, rewardPercentage: 2.4, logo: 'CO', active: true },
         { upsert: true, new: true },
       );
     }

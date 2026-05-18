@@ -5,7 +5,7 @@ import Card from '../components/common/Card';
 import PageHeader from '../components/common/PageHeader';
 
 export default function ReferralsPage() {
-  const code = 'IOX-VLX-8421';
+  const code = 'IOX-COIN-8421';
   const stats = [['L1 referrals', 18], ['L2 referrals', 47], ['Rebate earnings', '₹8,920']];
   return (
     <>

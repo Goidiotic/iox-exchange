@@ -52,6 +52,8 @@ export const adminApi = {
   transactions: () => api.get('/admin/transactions'),
   coupons: () => api.get('/admin/coupons'),
   tokens: () => api.get('/tokens'),
+  settings: () => api.get('/admin/settings'),
+  saveSettings: (payload) => api.patch('/admin/settings', payload),
   saveToken: (payload) => api.post('/admin/tokens', payload),
   createCoupon: (payload) => api.post('/admin/coupons', payload),
 };

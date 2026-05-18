@@ -31,9 +31,26 @@ export default function MarketPage() {
   const navigate = useNavigate();
   const { data = [], isLoading } = useMockQuery('market', mockApi.market);
   const { data: walletSummary, isLoading: walletLoading } = useMockQuery('market-wallet-summary', mockApi.walletSummary);
+  const { data: platformSettings } = useMockQuery('platform-settings', mockApi.platformSettings);
   const token = walletSummary?.tokens?.find((item) => item.id === selectedTokenId || item.symbol?.toLowerCase() === selectedTokenId) || walletSummary?.tokens?.[0] || TOKENS[0];
   const amount = Number(sellAmount || 0);
   const inrTotal = amount * (token.price || 0);
+  const quickSellFees = platformSettings?.quickSellFees || {
+    processingFeePercentage: 0.5,
+    burnPercentage: 1,
+    paymentGatewayPercentage: 2,
+  };
+  const quickFeeRows = [
+    ['Processing Fees', quickSellFees.processingFeePercentage],
+    ['Quick Sell Burn', quickSellFees.burnPercentage],
+    ['Payment Gateway Charge', quickSellFees.paymentGatewayPercentage],
+  ].map(([label, percentage]) => ({
+    label,
+    percentage: Number(percentage || 0),
+    amount: (inrTotal * Number(percentage || 0)) / 100,
+  }));
+  const quickFeeTotal = quickFeeRows.reduce((sum, fee) => sum + fee.amount, 0);
+  const netReceiveValue = sellType === 'quick' ? inrTotal - quickFeeTotal : inrTotal;
   const canSell = amount > 0 && amount <= (token.balance || 0);
   const visibleOrders = data
     .filter((order) => ['awaiting payment', 'pending', 'verified pending'].includes(order.status) && order.token.id === token.id)
@@ -229,19 +246,26 @@ export default function MarketPage() {
               {amount > 0 && (
                 <div className="panel grid gap-2 p-3 text-sm text-slate-300">
                   <div className="flex justify-between"><span>Token price</span><strong className="text-white">{formatINR(token.price)}</strong></div>
-                  <div className="flex justify-between"><span>Total receive value</span><strong className="text-acid">{formatINR(inrTotal)}</strong></div>
+                  <div className="flex justify-between"><span>Gross value</span><strong className="text-white">{formatINR(inrTotal)}</strong></div>
+                  {sellType === 'quick' && quickFeeRows.map((fee) => (
+                    <div className="flex justify-between" key={fee.label}>
+                      <span>{fee.label} ({fee.percentage}%)</span>
+                      <strong className="text-warn">-{formatINR(fee.amount)}</strong>
+                    </div>
+                  ))}
+                  <div className="flex justify-between"><span>Total receive value</span><strong className="text-acid">{formatINR(netReceiveValue)}</strong></div>
                 </div>
               )}
               <div className="grid gap-3 sm:grid-cols-2">
                 <button onClick={() => setSellType('manual')} className={`panel p-4 text-left ${sellType === 'manual' ? 'border-acid' : ''}`}>
                   <CheckCircle2 className="text-acid" />
                   <p className="mt-3 font-semibold">Manual</p>
-                  <p className="mt-1 text-sm text-slate-400">Sell using market place with High Rewards upto 5%.</p>
+                  <p className="mt-1 text-sm text-slate-400">Sell through the marketplace with admin verification and rewards.</p>
                 </button>
-                <button onClick={() => setSellType('auto')} className={`panel p-4 text-left ${sellType === 'auto' ? 'border-cyanx' : ''}`}>
+                <button onClick={() => setSellType('quick')} className={`panel p-4 text-left ${sellType === 'quick' ? 'border-cyanx' : ''}`}>
                   <Timer className="text-cyanx" />
-                  <p className="mt-3 font-semibold">Auto</p>
-                  <p className="mt-1 text-sm text-slate-400">Fast sell with zero rewards and high liquidity.</p>
+                  <p className="mt-3 font-semibold">Quick Sell</p>
+                  <p className="mt-1 text-sm text-slate-400">Instant-style sell with no rewards and admin-managed fees.</p>
                 </button>
               </div>
               {sellStep === 'confirm' && (
@@ -253,7 +277,13 @@ export default function MarketPage() {
                   <div className="grid gap-2 text-sm">
                     <div className="flex justify-between"><span className="text-slate-400">Amount</span><strong>{amount.toLocaleString('en-IN')} {token.symbol}</strong></div>
                     <div className="flex justify-between"><span className="text-slate-400">Mode</span><strong className="capitalize">{sellType}</strong></div>
-                    <div className="flex justify-between"><span className="text-slate-400">INR value</span><strong>{formatINR(inrTotal)}</strong></div>
+                    <div className="flex justify-between"><span className="text-slate-400">Gross INR value</span><strong>{formatINR(inrTotal)}</strong></div>
+                    {sellType === 'quick' && (
+                      <>
+                        <div className="flex justify-between"><span className="text-slate-400">Total fees</span><strong className="text-warn">-{formatINR(quickFeeTotal)}</strong></div>
+                        <div className="flex justify-between"><span className="text-slate-400">Net receive value</span><strong className="text-acid">{formatINR(netReceiveValue)}</strong></div>
+                      </>
+                    )}
                     <div className="flex justify-between"><span className="text-slate-400">Balance after sell</span><strong>{Number((token.balance || 0) - amount).toLocaleString('en-IN')} {token.symbol}</strong></div>
                   </div>
                   <div className="grid gap-2 sm:grid-cols-2">
@@ -293,7 +323,7 @@ export default function MarketPage() {
           <Card hover={false}>
             <h2 className="font-semibold">Sell rules</h2>
             <div className="mt-4 grid gap-3">
-              {['Token prices are fixed by backend controls.', 'Verification-stage orders remain hidden from buyers.', 'INR settlement is handled through M3 Wallet APIs.', 'Fast Track depends on platform merchant wallet liquidity.'].map((item) => (
+              {['Token prices are managed from the admin panel.', 'Manual verification-stage orders remain hidden from buyers.', 'Quick Sell has no rewards and applies processing, burn and payment gateway fees.', 'INR settlement is handled through M3 Wallet APIs.'].map((item) => (
                 <p className="panel p-3 text-sm text-slate-300" key={item}>{item}</p>
               ))}
             </div>

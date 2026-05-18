@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 export const useTradingStore = create((set) => ({
-  selectedTokenId: 'vlx',
+  selectedTokenId: 'coin',
   orderMode: 'buy',
   autoSellEnabled: false,
   orderStatusOverrides: {},

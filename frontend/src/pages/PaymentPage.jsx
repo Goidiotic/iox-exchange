@@ -27,7 +27,7 @@ export default function PaymentPage() {
   const selectedQuantity = isPurchaseOrder ? Number(order.quantity || 0) : Number(buyQuantity || maxQuantity);
   const paymentAmount = selectedQuantity * (order.token.price || 0);
   const paymentTimer = usePreciseCountdown(order.expiresAt ? Math.max(new Date(order.expiresAt).getTime() - Date.now(), 0) : 15 * 60 * 1000);
-  const addressSeed = `${order.id.replace(/[^A-Z0-9]/gi, '')}${paymentAmount}${selectedQuantity}VLX`.toUpperCase();
+  const addressSeed = `${order.id.replace(/[^A-Z0-9]/gi, '')}${paymentAmount}${selectedQuantity}${order.token.symbol}`.toUpperCase();
   const paymentAddress = `M3${addressSeed}9X7K4L2Q8P6N5R3T1V0Y`.slice(0, 34);
   const copyPaymentAddress = () => {
     navigator.clipboard?.writeText(paymentAddress);

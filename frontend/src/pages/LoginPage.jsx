@@ -50,7 +50,7 @@ export default function LoginPage() {
       {serverError && <div className="rounded-lg border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-200">{serverError}</div>}
       <div className="flex items-center justify-between text-sm">
         <label className="flex items-center gap-2 text-slate-300"><input type="checkbox" className="accent-acid" {...register('remember')} /> Remember me</label>
-        <Link className="text-cyanx hover:text-acid">Forgot password?</Link>
+        <Link to="/forgot-password" className="text-cyanx hover:text-acid">Forgot password?</Link>
       </div>
       <Button className="w-full" disabled={isSubmitting}>Login</Button>
       <p className="text-center text-sm text-slate-400">New trader? <Link to="/register" className="text-cyanx">Create account</Link></p>

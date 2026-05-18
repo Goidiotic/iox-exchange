@@ -7,7 +7,18 @@ export const tokenService = {
   },
 
   upsertToken(filter, payload) {
-    return Token.findOneAndUpdate(filter, payload, { upsert: true, new: true });
+    const update = {
+      name: payload.name,
+      symbol: String(payload.symbol || '').toUpperCase(),
+      fixedPrice: Number(payload.fixedPrice ?? 1),
+      rewardPercentage: Number(payload.rewardPercentage ?? 0),
+      logo: payload.logo,
+      active: payload.active ?? true,
+    };
+    if (payload._id) {
+      return Token.findByIdAndUpdate(payload._id, update, { new: true, runValidators: true });
+    }
+    return Token.findOneAndUpdate(filter, update, { upsert: true, new: true, runValidators: true });
   },
 
   async getBalance(userId, tokenId) {

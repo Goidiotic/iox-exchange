@@ -8,10 +8,10 @@ const normalizeToken = (token = TOKENS[0]) => ({
   id: token._id || token.id,
   name: token.name,
   symbol: token.symbol,
-  price: token.fixedPrice || token.price || 75,
+  price: token.fixedPrice ?? token.price ?? 1,
   balance: token.balance || 0,
   rewardAmount: token.rewardAmount || 15,
-  logo: token.logo || token.symbol?.slice(0, 2) || 'VL',
+  logo: token.logo || token.symbol?.slice(0, 2) || 'CO',
   color: token.color || 'from-acid to-cyanx',
 });
 
@@ -76,6 +76,8 @@ const normalizeOrder = (order = {}) => {
     completedQuantity: order.completedQuantity ?? 0,
     amount: (order.availableQuantity ?? order.quantity) * (order.fixedPrice || token.price || 0) || amount,
     totalAmount: amount,
+    netAmount: order.netInrAmount ?? amount,
+    feeBreakdown: order.feeBreakdown || {},
     rewardAmount: order.rewardAmount || Math.round((amount * (order.rewardPercentage || 0)) / 100),
     status: status === 'pending' ? 'awaiting payment' : status,
     counterparty: order.buyer?.uid || order.seller?.uid || order.buyer?.name || order.seller?.name || order.counterparty || 'M3 Wallet verification',
@@ -102,6 +104,8 @@ export const mockApi = {
     const data = unwrap(await apiClient.post('/auth/verify-registration', payload));
     return { verified: true, user: data.user, token: data.tokens?.accessToken, refreshToken: data.tokens?.refreshToken };
   },
+  requestPasswordReset: async (payload) => unwrap(await apiClient.post('/auth/password/forgot', payload)),
+  resetPassword: async (payload) => unwrap(await apiClient.post('/auth/password/reset', payload)),
   transactionPinStatus: async () => unwrap(await apiClient.get('/auth/transaction-pin/status')),
   requestTransactionPinOtp: async () => unwrap(await apiClient.post('/auth/transaction-pin/otp')),
   setupTransactionPin: async (payload) => unwrap(await apiClient.post('/auth/transaction-pin/setup', payload)),
@@ -131,6 +135,7 @@ export const mockApi = {
     const wallet = unwrap(await apiClient.get('/wallet/me'));
     return { tokens, wallet };
   },
+  platformSettings: async () => unwrap(await apiClient.get('/settings')),
   market: async () => unwrap(await apiClient.get('/orders/market')).map(normalizeOrder),
   order: async (id) => normalizeOrder(unwrap(await apiClient.get(`/orders/${id}`))),
   userOrders: async () => unwrap(await apiClient.get('/orders/me')).map(normalizeOrder),

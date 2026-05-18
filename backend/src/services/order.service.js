@@ -9,9 +9,30 @@ import { User } from '../models/User.js';
 import { ApiError } from '../utils/apiError.js';
 import { m3WalletService } from './m3Wallet.service.js';
 import { notificationService } from './notification.service.js';
+import { platformSettingsService } from './platformSettings.service.js';
 
 const nextNo = (prefix) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
-const paymentAddressFor = (order) => `M3${String(order.orderNo).replace(/[^A-Z0-9]/gi, '')}${Math.round(order.inrAmount)}${Math.round(order.quantity)}VLX9X7K4L2Q8P6N5R3T1V0Y`.slice(0, 34);
+const paymentAddressFor = (order) => `M3${String(order.orderNo).replace(/[^A-Z0-9]/gi, '')}${Math.round(order.inrAmount)}${Math.round(order.quantity)}9X7K4L2Q8P6N5R3T1V0Y`.slice(0, 34);
+
+const calculateQuickSellFees = (grossAmount, settings) => {
+  const feeSettings = settings.quickSellFees || {};
+  const processingFeePercentage = Number(feeSettings.processingFeePercentage || 0);
+  const burnPercentage = Number(feeSettings.burnPercentage || 0);
+  const paymentGatewayPercentage = Number(feeSettings.paymentGatewayPercentage || 0);
+  const processingFeeAmount = (grossAmount * processingFeePercentage) / 100;
+  const burnAmount = (grossAmount * burnPercentage) / 100;
+  const paymentGatewayAmount = (grossAmount * paymentGatewayPercentage) / 100;
+  const totalFeeAmount = processingFeeAmount + burnAmount + paymentGatewayAmount;
+  return {
+    processingFeePercentage,
+    processingFeeAmount,
+    burnPercentage,
+    burnAmount,
+    paymentGatewayPercentage,
+    paymentGatewayAmount,
+    totalFeeAmount,
+  };
+};
 
 const verifyTransactionPin = async (user, transactionPin) => {
   const account = await User.findById(user._id).select('+transactionPinHash mobile');
@@ -50,7 +71,7 @@ export const orderService = {
     return order;
   },
 
-  async createSellOrder(user, { tokenId, quantity, mode = 'auto', transactionPin }) {
+  async createSellOrder(user, { tokenId, quantity, mode = 'quick', transactionPin }) {
     await verifyTransactionPin(user, transactionPin);
     const token = await Token.findById(tokenId);
     if (!token || !token.active) throw new ApiError(404, 'Token not found');
@@ -62,15 +83,21 @@ export const orderService = {
     );
     if (!balance) throw new ApiError(400, 'Insufficient token balance');
     try {
+      const isQuickSell = ['quick', 'fast', 'auto'].includes(mode);
+      const inrAmount = sellQuantity * token.fixedPrice;
+      const settings = isQuickSell ? await platformSettingsService.get() : null;
+      const feeBreakdown = isQuickSell ? calculateQuickSellFees(inrAmount, settings) : {};
       const order = await Order.create({
-        orderNo: nextNo(mode === 'fast' ? 'FT' : 'ORD'),
-        type: mode === 'fast' ? ORDER_TYPES.FAST_TRACK_SELL : ORDER_TYPES.SELL,
+        orderNo: nextNo(isQuickSell ? 'QS' : 'ORD'),
+        type: isQuickSell ? ORDER_TYPES.FAST_TRACK_SELL : ORDER_TYPES.SELL,
         token: tokenId,
         seller: user._id,
         quantity: sellQuantity,
         fixedPrice: token.fixedPrice,
-        inrAmount: sellQuantity * token.fixedPrice,
-        rewardPercentage: mode === 'fast' ? 0.1 : token.rewardPercentage,
+        inrAmount,
+        netInrAmount: Math.max(inrAmount - (feeBreakdown.totalFeeAmount || 0), 0),
+        rewardPercentage: isQuickSell ? 0 : token.rewardPercentage,
+        feeBreakdown,
         status: ORDER_STATUS.PENDING_VERIFICATION,
         availableQuantity: sellQuantity,
         escrowedQuantity: 0,

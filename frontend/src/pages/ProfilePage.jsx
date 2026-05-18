@@ -33,7 +33,7 @@ export default function ProfilePage() {
   const wallet = walletSummary?.wallet;
   const walletUid = wallet?.walletId || user?.uid || `IOX-${mobile.slice(-6)}`;
   const walletBalance = token?.balance || 0;
-  const walletSymbol = token?.symbol || 'VLX';
+  const walletSymbol = token?.symbol || 'COIN';
   const walletPrice = token?.price || 0;
   const walletStatus = isError ? 'Unavailable' : wallet?.verified ? 'Connected' : wallet?.status === 'pending' ? 'Pending' : 'Not connected';
   const walletConnected = wallet?.verified || wallet?.status === 'active';

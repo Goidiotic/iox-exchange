@@ -76,21 +76,22 @@ function Stat({ label, value }) {
 function AdminShell({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(false);
-  const [data, setData] = useState({ users: [], orders: [], transactions: [], coupons: [], tokens: [] });
+  const [data, setData] = useState({ users: [], orders: [], transactions: [], coupons: [], tokens: [], settings: null });
   const [notice, setNotice] = useState('');
 
   const load = async () => {
     setLoading(true);
     setNotice('');
     try {
-      const [users, orders, transactions, coupons, tokens] = await Promise.all([
+      const [users, orders, transactions, coupons, tokens, settings] = await Promise.all([
         adminApi.users(),
         adminApi.pendingOrders(),
         adminApi.transactions(),
         adminApi.coupons(),
         adminApi.tokens(),
+        adminApi.settings(),
       ]);
-      setData({ users, orders, transactions, coupons, tokens });
+      setData({ users, orders, transactions, coupons, tokens, settings });
     } catch (err) {
       setNotice(err.message || 'Unable to load admin data');
     } finally {
@@ -162,7 +163,7 @@ function AdminShell({ user, onLogout }) {
         {activeTab === 'orders' && <Orders orders={data.orders} onDecision={decideOrder} />}
         {activeTab === 'users' && <Users users={data.users} />}
         {activeTab === 'transactions' && <Transactions transactions={data.transactions} />}
-        {activeTab === 'settings' && <Settings users={data.users} coupons={data.coupons} tokens={data.tokens} onSaved={load} />}
+        {activeTab === 'settings' && <Settings users={data.users} coupons={data.coupons} tokens={data.tokens} settings={data.settings} onSaved={load} />}
       </main>
     </div>
   );
@@ -173,7 +174,7 @@ function Overview({ stats, data }) {
     <>
       <div className="stats-grid">
         <Stat label="Users" value={stats.users} />
-        <Stat label="Pending orders" value={stats.pendingOrders} />
+        <Stat label="Active orders" value={stats.pendingOrders} />
         <Stat label="Transactions" value={stats.transactions} />
         <Stat label="Volume" value={formatInr(stats.volume)} />
       </div>
@@ -209,7 +210,7 @@ function Orders({ orders, onDecision }) {
           <div className="row sell-order-row" key={order._id}>
             <span>
               <strong>{order.orderNo}</strong>
-              <small>{order.type === 'fast_track_sell' ? 'Fast sell' : 'Manual sell'}</small>
+              <small>{order.type === 'fast_track_sell' ? 'Quick Sell' : 'Manual'}</small>
             </span>
             <span>
               <strong>{order.seller?.mobile || '-'}</strong>
@@ -272,10 +273,34 @@ function Transactions({ transactions, compact = false }) {
   );
 }
 
-function Settings({ users, coupons, tokens, onSaved }) {
-  const [token, setToken] = useState({ symbol: 'VLX', name: 'VLX Token', fixedPrice: 75, rewardPercentage: 0.2, active: true });
+function Settings({ users, coupons, tokens, settings, onSaved }) {
+  const [token, setToken] = useState({ symbol: 'COIN', name: 'Default Coin', fixedPrice: 1, rewardPercentage: 0.2, active: true });
+  const [quickSellFees, setQuickSellFees] = useState({
+    processingFeePercentage: 0.5,
+    burnPercentage: 1,
+    paymentGatewayPercentage: 2,
+  });
   const [coupon, setCoupon] = useState({ code: '', title: '', description: '', scope: 'global', tokenId: '', value: 0, startsAt: '', expiresAt: '', usageLimit: 1, mobiles: '' });
   const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    if (tokens[0]) {
+      setToken({
+        _id: tokens[0]._id,
+        symbol: tokens[0].symbol || 'COIN',
+        name: tokens[0].name || 'Default Coin',
+        fixedPrice: tokens[0].fixedPrice ?? 1,
+        rewardPercentage: tokens[0].rewardPercentage ?? 0,
+        active: tokens[0].active !== false,
+      });
+    }
+  }, [tokens]);
+
+  useEffect(() => {
+    if (settings?.quickSellFees) {
+      setQuickSellFees(settings.quickSellFees);
+    }
+  }, [settings]);
 
   const saveToken = async (event) => {
     event.preventDefault();
@@ -296,7 +321,7 @@ function Settings({ users, coupons, tokens, onSaved }) {
         value: Number(coupon.value),
         usageLimit: Number(coupon.usageLimit),
         tokenId: coupon.tokenId || tokens[0]?._id,
-        tokenSymbol: 'VLX',
+        tokenSymbol: tokens.find((item) => item._id === coupon.tokenId)?.symbol || tokens[0]?.symbol,
         mobiles: coupon.scope === 'user_specific'
           ? coupon.mobiles.split(',').map((mobile) => mobile.trim()).filter(Boolean)
           : [],
@@ -306,6 +331,17 @@ function Settings({ users, coupons, tokens, onSaved }) {
       onSaved();
     } catch (err) {
       setMessage(err.message || 'Unable to create coupon');
+    }
+  };
+
+  const saveSettings = async (event) => {
+    event.preventDefault();
+    try {
+      await adminApi.saveSettings({ quickSellFees });
+      setMessage('Quick sell fees saved');
+      onSaved();
+    } catch (err) {
+      setMessage(err.message || 'Unable to save quick sell fees');
     }
   };
 
@@ -326,6 +362,19 @@ function Settings({ users, coupons, tokens, onSaved }) {
           <input value={token.rewardPercentage} onChange={(event) => setToken({ ...token, rewardPercentage: Number(event.target.value) })} type="number" placeholder="Reward %" />
         </Field>
         <button>Save Token</button>
+      </form>
+      <form className="panel form" onSubmit={saveSettings}>
+        <h2>Quick Sell Fees</h2>
+        <Field label="Processing Fee %">
+          <input value={quickSellFees.processingFeePercentage} onChange={(event) => setQuickSellFees({ ...quickSellFees, processingFeePercentage: Number(event.target.value) })} type="number" step="0.01" min="0" />
+        </Field>
+        <Field label="Quick Sell Burn %">
+          <input value={quickSellFees.burnPercentage} onChange={(event) => setQuickSellFees({ ...quickSellFees, burnPercentage: Number(event.target.value) })} type="number" step="0.01" min="0" />
+        </Field>
+        <Field label="Payment Gateway Charge %">
+          <input value={quickSellFees.paymentGatewayPercentage} onChange={(event) => setQuickSellFees({ ...quickSellFees, paymentGatewayPercentage: Number(event.target.value) })} type="number" step="0.01" min="0" />
+        </Field>
+        <button>Save Fees</button>
       </form>
       <form className="panel form" onSubmit={saveCoupon}>
         <h2>Create Coupon</h2>

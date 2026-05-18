@@ -61,7 +61,7 @@ export default function CouponsPage() {
 
                 <div className="mt-4 grid gap-2 text-sm text-slate-400">
                   <p>Type: <span className="capitalize text-slate-200">{coupon.scope === 'user_specific' ? 'Individual' : 'Global'}</span></p>
-                  <p>Token amount: <span className="text-slate-200">{coupon.value || 0} {coupon.token?.symbol || 'VLX'}</span></p>
+                  <p>Token amount: <span className="text-slate-200">{coupon.value || 0} {coupon.token?.symbol || 'COIN'}</span></p>
                   <p className="flex items-center gap-2"><Clock size={15} />Valid till {formatDate(coupon.expiresAt)}</p>
                 </div>
 
