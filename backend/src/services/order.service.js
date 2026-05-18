@@ -267,23 +267,41 @@ export const orderService = {
   },
 
   async rejectSubmittedPayment(admin, orderId, reason) {
-    const order = await Order.findOne({
-      _id: orderId,
-      type: ORDER_TYPES.BUY,
-      status: ORDER_STATUS.UNDER_REVIEW,
-    }).populate('token seller buyer parentOrder');
+    const review = {
+      reviewedBy: admin._id,
+      reviewedAt: new Date(),
+      rejectionReason: reason || 'Payment rejected by admin',
+    };
+    const order = await Order.findOneAndUpdate(
+      {
+        _id: orderId,
+        type: ORDER_TYPES.BUY,
+        status: ORDER_STATUS.UNDER_REVIEW,
+      },
+      { $set: { status: ORDER_STATUS.REJECTED, verification: review } },
+      { new: true },
+    ).populate('token seller buyer parentOrder');
     if (!order) throw new ApiError(404, 'Submitted payment order not found');
 
     if (order.parentOrder) {
-      await Order.updateOne(
-        { _id: order.parentOrder },
-        { $inc: { availableQuantity: order.quantity, escrowedQuantity: -order.quantity } },
-      );
+      const parentOrder = await Order.findById(order.parentOrder);
+      if (parentOrder && parentOrder.status === ORDER_STATUS.PENDING) {
+        await Order.updateOne(
+          { _id: parentOrder._id },
+          { $inc: { availableQuantity: order.quantity, escrowedQuantity: -order.quantity } },
+        );
+      } else {
+        await Order.updateOne(
+          { _id: order.parentOrder },
+          { $inc: { escrowedQuantity: -order.quantity } },
+        );
+        await TokenBalance.updateOne(
+          { user: order.seller, token: order.token._id, locked: { $gte: order.quantity } },
+          { $inc: { available: order.quantity, locked: -order.quantity } },
+        );
+      }
     }
 
-    order.status = ORDER_STATUS.REJECTED;
-    order.verification = { reviewedBy: admin._id, reviewedAt: new Date(), rejectionReason: reason || 'Payment rejected by admin' };
-    await order.save();
     await Transaction.updateOne({ order: order._id, type: 'buy' }, { status: 'failed' });
     await notificationService.notify(order.buyer, 'transaction', 'Payment rejected', reason || 'Your submitted payment details were rejected.', { orderId });
     return order;
@@ -340,11 +358,22 @@ export const orderService = {
           { _id: order.parentOrder },
           { $inc: { escrowedQuantity: -order.quantity, cancelledQuantity: order.quantity } },
         );
-        await TokenBalance.updateOne({ user: order.seller, token: order.token._id }, { $inc: { available: order.quantity, locked: -order.quantity } });
+        await TokenBalance.updateOne(
+          { user: order.seller, token: order.token._id, locked: { $gte: order.quantity } },
+          { $inc: { available: order.quantity, locked: -order.quantity } },
+        );
       }
     } else if (order.seller.equals(user._id)) {
-      const refundQuantity = order.availableQuantity || order.quantity;
-      await TokenBalance.updateOne({ user: order.seller, token: order.token._id }, { $inc: { available: refundQuantity, locked: -refundQuantity } });
+      if ((order.escrowedQuantity || 0) > 0) {
+        throw new ApiError(400, 'Cannot cancel this sell order while buy orders are active');
+      }
+      const refundQuantity = Number(order.availableQuantity || 0);
+      if (refundQuantity > 0) {
+        await TokenBalance.updateOne(
+          { user: order.seller, token: order.token._id, locked: { $gte: refundQuantity } },
+          { $inc: { available: refundQuantity, locked: -refundQuantity } },
+        );
+      }
       order.expiredQuantity += refundQuantity;
       order.availableQuantity = 0;
     }

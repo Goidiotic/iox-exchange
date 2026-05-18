@@ -28,7 +28,7 @@ export const registerCronJobs = () => {
           { $inc: { escrowedQuantity: -order.quantity, cancelledQuantity: order.quantity } },
         );
         await TokenBalance.updateOne(
-          { user: order.seller, token: order.token._id || order.token },
+          { user: order.seller, token: order.token._id || order.token, locked: { $gte: order.quantity } },
           { $inc: { available: order.quantity, locked: -order.quantity } },
         );
       }
@@ -48,10 +48,10 @@ export const registerCronJobs = () => {
     }).limit(100);
 
     await Promise.all(expiredSellOrders.map(async (order) => {
-      const refundQuantity = order.availableQuantity;
+      const refundQuantity = Number(order.availableQuantity || 0);
       if (refundQuantity > 0) {
         await TokenBalance.updateOne(
-          { user: order.seller, token: order.token },
+          { user: order.seller, token: order.token, locked: { $gte: refundQuantity } },
           { $inc: { available: refundQuantity, locked: -refundQuantity } },
         );
       }
@@ -85,7 +85,7 @@ export const registerCronJobs = () => {
 
     await Promise.all(staleOrders.map(async (order) => {
       await TokenBalance.updateOne(
-        { user: order.seller, token: order.token },
+        { user: order.seller, token: order.token, locked: { $gte: order.quantity } },
         { $inc: { available: order.quantity, locked: -order.quantity } },
       );
       order.status = ORDER_STATUS.EXPIRED;
