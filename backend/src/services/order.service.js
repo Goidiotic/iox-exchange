@@ -217,50 +217,53 @@ export const orderService = {
     }).populate('token seller buyer parentOrder');
     if (!order) throw new ApiError(404, 'Submitted payment order not found');
 
-    const session = await mongoose.startSession();
-    try {
-      await session.withTransaction(async () => {
-        order.status = ORDER_STATUS.COMPLETED;
-        order.settlement = {
-          ...order.settlement,
-          verifiedAt: new Date(),
-          reviewedBy: admin._id,
-        };
-        await order.save({ session });
+    const buyerId = order.buyer?._id || order.buyer;
+    const sellerId = order.seller?._id || order.seller;
+    const tokenId = order.token?._id || order.token;
+    const now = new Date();
 
-        await TokenBalance.updateOne(
-          { user: order.seller, token: order.token._id },
-          { $inc: { locked: -order.quantity } },
-          { session },
-        );
+    const completedOrder = await Order.findOneAndUpdate(
+      { _id: order._id, status: ORDER_STATUS.UNDER_REVIEW },
+      {
+        $set: {
+          status: ORDER_STATUS.COMPLETED,
+          'settlement.verifiedAt': now,
+          'verification.reviewedBy': admin._id,
+          'verification.reviewedAt': now,
+        },
+      },
+      { new: true },
+    ).populate('token seller buyer parentOrder', 'name symbol fixedPrice rewardPercentage uid referralCode mobile orderNo status availableQuantity escrowedQuantity');
+    if (!completedOrder) throw new ApiError(409, 'Payment approval was already processed');
 
-        if (order.parentOrder) {
-          const parent = await Order.findById(order.parentOrder).session(session);
-          if (parent) {
-            parent.escrowedQuantity = Math.max((parent.escrowedQuantity || 0) - order.quantity, 0);
-            parent.completedQuantity = (parent.completedQuantity || 0) + order.quantity;
-            if ((parent.availableQuantity || 0) <= 0 && (parent.escrowedQuantity || 0) <= 0) {
-              parent.status = ORDER_STATUS.COMPLETED;
-              parent.expiresAt = new Date();
-            }
-            await parent.save({ session });
-          }
+    await TokenBalance.updateOne(
+      { user: sellerId, token: tokenId },
+      { $inc: { locked: -order.quantity } },
+    );
+
+    if (order.parentOrder) {
+      const parent = await Order.findById(order.parentOrder);
+      if (parent) {
+        parent.escrowedQuantity = Math.max((parent.escrowedQuantity || 0) - order.quantity, 0);
+        parent.completedQuantity = (parent.completedQuantity || 0) + order.quantity;
+        if ((parent.availableQuantity || 0) <= 0 && (parent.escrowedQuantity || 0) <= 0) {
+          parent.status = ORDER_STATUS.COMPLETED;
+          parent.expiresAt = now;
         }
-
-        await TokenBalance.findOneAndUpdate(
-          { user: order.buyer, token: order.token._id },
-          { $inc: { available: order.quantity, rewards: (order.inrAmount * order.rewardPercentage) / 100 } },
-          { upsert: true, new: true, session },
-        );
-
-        await Transaction.updateOne({ order: order._id, type: 'buy' }, { status: 'completed' }, { session });
-      });
-      await notificationService.notify(order.buyer, 'transaction', 'Order completed', 'Your buy order was approved and coins were credited.', { orderId });
-      await notificationService.notify(order.seller, 'transaction', 'Sell order completed', 'Buyer payment was approved by admin.', { orderId });
-      return order.populate('token seller buyer parentOrder', 'name symbol fixedPrice rewardPercentage uid referralCode mobile orderNo status');
-    } finally {
-      session.endSession();
+        await parent.save();
+      }
     }
+
+    await TokenBalance.findOneAndUpdate(
+      { user: buyerId, token: tokenId },
+      { $inc: { available: order.quantity, rewards: (order.inrAmount * order.rewardPercentage) / 100 } },
+      { upsert: true, new: true },
+    );
+
+    await Transaction.updateOne({ order: order._id, type: 'buy' }, { status: 'completed' });
+    await notificationService.notify(buyerId, 'transaction', 'Order completed', 'Your buy order was approved and coins were credited.', { orderId });
+    await notificationService.notify(sellerId, 'transaction', 'Sell order completed', 'Buyer payment was approved by admin.', { orderId });
+    return completedOrder;
   },
 
   async rejectSubmittedPayment(admin, orderId, reason) {
