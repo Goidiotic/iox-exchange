@@ -1,11 +1,10 @@
-import { ShieldCheck, WalletCards } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Badge from '../components/common/Badge';
 import Button from '../components/common/Button';
-import Card from '../components/common/Card';
 import FormField from '../components/forms/FormField';
 import Skeleton from '../components/common/Skeleton';
 import { TOKENS } from '../constants/tokens';
@@ -15,7 +14,7 @@ import { useTradingStore } from '../stores/tradingStore';
 import { formatINR } from '../utils/format';
 
 export default function MarketPage() {
-  const { orderMode, setOrderMode, selectedTokenId } = useTradingStore();
+  const { selectedTokenId } = useTradingStore();
   const [sizeFilter, setSizeFilter] = useState('all');
   const [purchaseOrder, setPurchaseOrder] = useState(null);
   const [purchaseQuantity, setPurchaseQuantity] = useState('');
@@ -24,7 +23,7 @@ export default function MarketPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { data = [], isLoading } = useMockQuery('market', mockApi.market);
-  const { data: walletSummary, isLoading: walletLoading } = useMockQuery('market-wallet-summary', mockApi.walletSummary);
+  const { data: walletSummary } = useMockQuery('market-wallet-summary', mockApi.walletSummary);
   const token = walletSummary?.tokens?.find((item) => item.id === selectedTokenId || item.symbol?.toLowerCase() === selectedTokenId) || walletSummary?.tokens?.[0] || TOKENS[0];
   const visibleOrders = data
     .filter((order) => order.status === 'pending' && order.token.id === token.id && Number(order.availableQuantity || order.quantity || 0) >= 100)
@@ -74,81 +73,56 @@ export default function MarketPage() {
 
   return (
     <div className="overflow-x-hidden">
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="inline-grid grid-cols-2 rounded-lg border border-line bg-white/[0.04] p-1">
-          {['buy', 'sell'].map((mode) => (
+      <div className="mb-5 space-y-4">
+        <div>
+          <p className="text-xl font-black uppercase leading-tight text-acid">BUY {token.symbol} USING M3 WALLET</p>
+          <h1 className="mt-2 text-2xl font-semibold text-white">Market</h1>
+        </div>
+        <div className="flex w-fit items-center justify-start gap-2">
+          {['all', 'small', 'large'].map((filter) => (
             <button
-              key={mode}
-              onClick={() => setOrderMode(mode)}
-              className={`rounded-md px-5 py-2 text-sm font-semibold capitalize ${orderMode === mode ? 'bg-acid text-ink' : 'text-slate-300'}`}
+              key={filter}
+              onClick={() => setSizeFilter(filter)}
+              className={`h-8 rounded-full border px-3 text-xs font-semibold capitalize transition ${sizeFilter === filter ? 'border-cyanx bg-cyanx text-ink' : 'border-line bg-white/[0.04] text-slate-300'}`}
             >
-              {mode}
+              {filter}
             </button>
           ))}
         </div>
-        {orderMode === 'buy' && (
-          <div className="flex w-fit items-center justify-start gap-2">
-            {['all', 'small', 'large'].map((filter) => (
-              <button
-                key={filter}
-                onClick={() => setSizeFilter(filter)}
-                className={`h-8 rounded-full border px-3 text-xs font-semibold capitalize transition ${sizeFilter === filter ? 'border-cyanx bg-cyanx text-ink' : 'border-line bg-white/[0.04] text-slate-300'}`}
-              >
-                {filter}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
-      {orderMode === 'buy' ? (
-        isLoading ? (
-          <Skeleton rows={3} />
-        ) : (
-          <div className="overflow-hidden rounded-lg border border-line bg-white/[0.045]">
-            {visibleOrders.map((order) => (
-              <div key={order.id} className="flex items-start justify-between gap-3 border-b border-line px-3 py-4 last:border-b-0 sm:px-4">
-                <div className="flex min-w-0 flex-1 items-start gap-3">
-                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-acid to-cyanx text-sm font-black text-ink">
-                    {order.seller.charAt(0)}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="truncate text-sm font-semibold text-white sm:text-base">{order.seller}</h3>
-                      <ShieldCheck size={14} className="shrink-0 text-acid" />
-                      <Badge status="pending" className="px-2 py-0.5 text-[10px]">Online</Badge>
-                    </div>
-                    <p className="mt-1 truncate text-[11px] text-slate-500">Order value {formatINR(order.amount)}</p>
-                    <p className="mt-1 truncate text-xs text-acid">{formatINR(order.rewardAmount)} Rewards</p>
-                  </div>
+      {isLoading ? (
+        <Skeleton rows={3} />
+      ) : (
+        <div className="overflow-hidden rounded-lg border border-line bg-white/[0.045]">
+          {visibleOrders.map((order) => (
+            <div key={order.id} className="flex items-start justify-between gap-3 border-b border-line px-3 py-4 last:border-b-0 sm:px-4">
+              <div className="flex min-w-0 flex-1 items-start gap-3">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-acid to-cyanx text-sm font-black text-ink">
+                  {order.seller.charAt(0)}
                 </div>
-
-                <div className="w-24 shrink-0 self-start text-right sm:w-32">
-                  <p className="truncate text-sm font-semibold text-white sm:text-base">{order.quantity.toLocaleString('en-IN')} {order.token.symbol}</p>
-                  <p className="mt-1 text-xs text-slate-500">{formatINR(order.amount)}</p>
-                  <button type="button" onClick={() => openPurchaseWindow(order)} className="btn-primary mt-2 px-3 py-2 text-xs sm:px-4">Buy</button>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="truncate text-sm font-semibold text-white sm:text-base">{order.seller}</h3>
+                    <ShieldCheck size={14} className="shrink-0 text-acid" />
+                    <Badge status="pending" className="px-2 py-0.5 text-[10px]">Online</Badge>
+                  </div>
+                  <p className="mt-1 truncate text-[11px] text-slate-500">Order value {formatINR(order.amount)}</p>
+                  <p className="mt-1 truncate text-xs text-acid">{formatINR(order.rewardAmount)} Rewards</p>
                 </div>
               </div>
-            ))}
-            {visibleOrders.length === 0 && (
-              <div className="px-4 py-8 text-center text-sm text-slate-500">No verified sell orders available for this token.</div>
-            )}
-          </div>
-        )
-      ) : (
-        <Card hover={false} className="p-5">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="font-semibold text-white">Sell {token.name}</h2>
-              <p className="mt-1 text-sm text-slate-400">
-                {walletLoading ? 'Loading wallet...' : `Available ${Number(token.balance || 0).toLocaleString('en-IN')} ${token.symbol}`}
-              </p>
+
+              <div className="w-24 shrink-0 self-start text-right sm:w-32">
+                <p className="truncate text-sm font-semibold text-white sm:text-base">{order.quantity.toLocaleString('en-IN')} {order.token.symbol}</p>
+                <p className="mt-1 text-xs text-slate-500">{formatINR(order.amount)}</p>
+                <button type="button" onClick={() => openPurchaseWindow(order)} className="btn-primary mt-2 px-3 py-2 text-xs sm:px-4">Buy</button>
+              </div>
             </div>
-            <Button onClick={() => navigate('/sell')} disabled={walletLoading}>
-              <WalletCards size={16} /> Start Sell
-            </Button>
-          </div>
-        </Card>
+          ))}
+          {visibleOrders.length === 0 && (
+            <div className="px-4 py-8 text-center text-sm text-slate-500">No verified sell orders available for this token.</div>
+          )}
+        </div>
       )}
 
       {purchaseOrder && (
