@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { ArrowDownLeft, ArrowUpRight, CheckCircle2, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -54,6 +55,7 @@ function DetailRow({ label, value, strong = false }) {
 export default function OrderDetailPage() {
   const { orderId } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: order, isLoading } = useMockQuery(['order', orderId], () => mockApi.order(orderId));
   const orderStatusOverrides = useTradingStore((state) => state.orderStatusOverrides);
   const orderTimerOverrides = useTradingStore((state) => state.orderTimerOverrides);
@@ -94,6 +96,15 @@ export default function OrderDetailPage() {
   const cancelOrder = async () => {
     await mockApi.cancelOrder(order.id);
     setOrderStatus(order.id, 'cancelled');
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
+      queryClient.invalidateQueries({ queryKey: ['market-wallet-summary'] }),
+      queryClient.invalidateQueries({ queryKey: ['sell-wallet-summary'] }),
+      queryClient.invalidateQueries({ queryKey: ['account-wallet-summary'] }),
+      queryClient.invalidateQueries({ queryKey: ['user-orders'] }),
+      queryClient.invalidateQueries({ queryKey: ['dashboard-user-orders'] }),
+      queryClient.invalidateQueries({ queryKey: ['market'] }),
+    ]);
     toast.success('Order cancelled');
   };
 

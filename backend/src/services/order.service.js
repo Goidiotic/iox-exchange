@@ -69,18 +69,27 @@ const createRefundTransaction = (order, quantity, reason) => Transaction.findOne
 const refundToSellerWallet = async (order, quantity, reason) => {
   const refundQuantity = Number(quantity || 0);
   if (refundQuantity <= 0) return;
+  const sellerId = order.seller?._id || order.seller;
+  const tokenId = order.token?._id || order.token;
 
   const result = await TokenBalance.updateOne(
     {
-      user: order.seller?._id || order.seller,
-      token: order.token?._id || order.token,
+      user: sellerId,
+      token: tokenId,
       locked: { $gte: refundQuantity },
     },
     { $inc: { available: refundQuantity, locked: -refundQuantity } },
   );
-  if (result.modifiedCount > 0) {
-    await createRefundTransaction(order, refundQuantity, reason);
+  if (result.modifiedCount === 0) {
+    const balance = await TokenBalance.findOne({ user: sellerId, token: tokenId });
+    throw new ApiError(409, 'Unable to refund seller wallet balance', {
+      code: 'SELLER_REFUND_FAILED',
+      refundQuantity,
+      available: balance?.available || 0,
+      locked: balance?.locked || 0,
+    });
   }
+  await createRefundTransaction(order, refundQuantity, reason);
 };
 
 const releaseBuyReservation = async (order, reason) => {
