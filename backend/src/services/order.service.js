@@ -314,10 +314,19 @@ export const orderService = {
     ).populate('token seller buyer parentOrder', 'name symbol fixedPrice rewardPercentage uid referralCode mobile orderNo status availableQuantity escrowedQuantity');
     if (!completedOrder) throw new ApiError(409, 'Payment approval was already processed');
 
-    await TokenBalance.updateOne(
-      { user: sellerId, token: tokenId },
+    const sellerDebit = await TokenBalance.updateOne(
+      { user: sellerId, token: tokenId, locked: { $gte: order.quantity } },
       { $inc: { locked: -order.quantity } },
     );
+    if (sellerDebit.modifiedCount === 0) {
+      const balance = await TokenBalance.findOne({ user: sellerId, token: tokenId });
+      throw new ApiError(409, 'Unable to complete order because seller locked balance is inconsistent', {
+        code: 'SELLER_LOCKED_BALANCE_INVALID',
+        debitQuantity: order.quantity,
+        available: balance?.available || 0,
+        locked: balance?.locked || 0,
+      });
+    }
 
     if (order.parentOrder) {
       const parent = await Order.findById(order.parentOrder);
@@ -362,6 +371,9 @@ export const orderService = {
     if (!order) throw new ApiError(404, 'Submitted payment order not found');
 
     await releaseBuyReservation(order, 'payment_rejected');
+    order.escrowedQuantity = 0;
+    order.cancelledQuantity = Number(order.cancelledQuantity || 0) + Number(order.quantity || 0);
+    await order.save();
 
     await Transaction.updateOne({ order: order._id, type: 'buy' }, { status: 'failed' });
     await notificationService.notify(order.buyer, 'transaction', 'Payment rejected', reason || 'Your submitted payment details were rejected.', { orderId });
@@ -378,7 +390,12 @@ export const orderService = {
         order.status = ORDER_STATUS.COMPLETED;
         order.settlement = { ...order.settlement, verifiedAt: new Date() };
         await order.save({ session });
-        await TokenBalance.updateOne({ user: order.seller, token: order.token._id }, { $inc: { locked: -order.quantity } }, { session });
+        const sellerDebit = await TokenBalance.updateOne(
+          { user: order.seller, token: order.token._id, locked: { $gte: order.quantity } },
+          { $inc: { locked: -order.quantity } },
+          { session },
+        );
+        if (sellerDebit.modifiedCount === 0) throw new ApiError(409, 'Seller locked balance is inconsistent');
         if (order.parentOrder) {
           await Order.updateOne(
             { _id: order.parentOrder },
@@ -412,6 +429,8 @@ export const orderService = {
 
     if (order.type === ORDER_TYPES.BUY && order.buyer?.equals(user._id)) {
       await releaseBuyReservation(order, 'buy_cancelled');
+      order.escrowedQuantity = 0;
+      order.cancelledQuantity = Number(order.cancelledQuantity || 0) + Number(order.quantity || 0);
     } else if ([ORDER_TYPES.SELL, ORDER_TYPES.FAST_TRACK_SELL].includes(order.type) && order.seller.equals(user._id)) {
       const refundQuantity = Number(order.availableQuantity || 0);
       await refundToSellerWallet(order, refundQuantity, 'sell_cancelled');

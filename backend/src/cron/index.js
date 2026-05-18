@@ -79,6 +79,8 @@ export const registerCronJobs = () => {
         await refundToSellerWallet(order, order.quantity, 'buy_expired');
       }
       order.status = ORDER_STATUS.EXPIRED;
+      order.escrowedQuantity = 0;
+      order.cancelledQuantity = Number(order.cancelledQuantity || 0) + Number(order.quantity || 0);
       await order.save();
     }));
 
