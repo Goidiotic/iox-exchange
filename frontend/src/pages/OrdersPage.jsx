@@ -12,15 +12,17 @@ import { mockApi } from '../services/mockApi';
 import { classNames, formatINR } from '../utils/format';
 
 const filters = ['all', 'buy', 'sell'];
-const terminalStatuses = ['completed', 'cancelled'];
+const terminalStatuses = ['completed', 'cancelled', 'expired', 'failed', 'rejected'];
 
 function OrderRow({ order, index }) {
   const isSellSide = order.displayType === 'sub-sell' || order.type === 'sell';
   const Icon = isSellSide ? ArrowUpRight : ArrowDownLeft;
   const sideClass = isSellSide ? 'text-cyanx' : 'text-acid';
-  const showProgress = !terminalStatuses.includes(order.status);
   const countdownMs = order.expiresAt ? Math.max(new Date(order.expiresAt).getTime() - Date.now(), 0) : 0;
   const timer = usePreciseCountdown(countdownMs);
+  const clockExpired = Boolean(order.expiresAt && countdownMs === 0 && ['pending', 'awaiting payment', 'verified pending'].includes(order.status));
+  const displayStatus = clockExpired ? 'expired' : order.status;
+  const showProgress = !terminalStatuses.includes(displayStatus);
 
   return (
     <Link
@@ -44,8 +46,8 @@ function OrderRow({ order, index }) {
             <h2 className="truncate text-sm font-semibold text-white sm:text-base">
               {(order.displayType || order.type).toUpperCase()} {order.token.symbol}
             </h2>
-            <Badge status={order.status} className="px-2 py-0.5 text-[10px] capitalize">
-              {order.status}
+            <Badge status={displayStatus} className="px-2 py-0.5 text-[10px] capitalize">
+              {displayStatus}
             </Badge>
           </div>
           <p className="mt-1 truncate text-xs text-slate-400">{order.token.name}</p>
@@ -55,7 +57,7 @@ function OrderRow({ order, index }) {
         <div className="shrink-0 text-right">
           <p className="text-sm font-semibold text-white sm:text-base">{formatINR(order.amount)}</p>
           <p className="mt-1 text-xs text-slate-400">Qty {order.quantity}</p>
-          <p className="mt-0.5 text-[11px] capitalize text-slate-500">{order.status}</p>
+          <p className="mt-0.5 text-[11px] capitalize text-slate-500">{displayStatus}</p>
         </div>
 
         <ChevronRight size={16} className="hidden shrink-0 text-slate-600 sm:block" />

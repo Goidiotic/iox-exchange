@@ -24,12 +24,12 @@ export default function SellPage() {
   const amount = Number(sellAmount || 0);
   const quickSellFees = platformSettings?.quickSellFees || defaultQuickSellFees;
   const quote = calculateSellQuote({ amount, token, sellType, quickSellFees });
-  const canSell = amount > 0 && amount <= Number(token.balance || 0);
+  const canSell = amount >= 100 && amount <= 50000 && amount <= Number(token.balance || 0);
 
   const proceed = () => {
     setError('');
     if (!canSell) {
-      setError('Enter a coin amount within your available balance.');
+      setError('Enter a coin amount between 100 and 50000 within your available balance.');
       return;
     }
     navigate('/sell/confirm', {
@@ -53,7 +53,7 @@ export default function SellPage() {
 
       <div className="space-y-4">
         <FormField label="Coin amount">
-          <input className="field" inputMode="decimal" value={sellAmount} onChange={(event) => setSellAmount(event.target.value)} placeholder={`Amount in ${token.symbol}`} />
+          <input className="field" inputMode="decimal" value={sellAmount} onChange={(event) => setSellAmount(event.target.value)} placeholder={`Min 100, max 50000 ${token.symbol}`} />
         </FormField>
 
         <div className="grid gap-3 sm:grid-cols-2">

@@ -27,7 +27,7 @@ export default function MarketPage() {
   const { data: walletSummary, isLoading: walletLoading } = useMockQuery('market-wallet-summary', mockApi.walletSummary);
   const token = walletSummary?.tokens?.find((item) => item.id === selectedTokenId || item.symbol?.toLowerCase() === selectedTokenId) || walletSummary?.tokens?.[0] || TOKENS[0];
   const visibleOrders = data
-    .filter((order) => ['awaiting payment', 'pending', 'verified pending'].includes(order.status) && order.token.id === token.id)
+    .filter((order) => order.status === 'pending' && order.token.id === token.id && Number(order.availableQuantity || order.quantity || 0) >= 100)
     .sort((a, b) => {
       if (sizeFilter === 'small') return a.amount - b.amount;
       if (sizeFilter === 'large') return b.amount - a.amount;
@@ -51,8 +51,8 @@ export default function MarketPage() {
     const quantity = Number(purchaseQuantity || 0);
     const maxQuantity = Number(purchaseOrder.availableQuantity || purchaseOrder.quantity || 0);
     setPurchaseError('');
-    if (!quantity || quantity <= 0 || quantity > maxQuantity) {
-      setPurchaseError('Enter token quantity within available amount.');
+    if (!quantity || quantity < 100 || quantity > maxQuantity) {
+      setPurchaseError('Enter token quantity from 100 up to the available amount.');
       return;
     }
     setCreatingPurchase(true);
@@ -179,7 +179,7 @@ export default function MarketPage() {
                   inputMode="decimal"
                   value={purchaseQuantity}
                   onChange={(event) => setPurchaseQuantity(event.target.value)}
-                  placeholder="Token quantity"
+                  placeholder="Min 100"
                 />
               </FormField>
               <div className="panel flex justify-between gap-3 p-3 text-sm">

@@ -82,7 +82,7 @@ const normalizeOrder = (order = {}) => {
     netAmount: order.netInrAmount ?? amount,
     feeBreakdown: order.feeBreakdown || {},
     rewardAmount: order.rewardAmount || Math.round((amount * (order.rewardPercentage || 0)) / 100),
-    status: status === 'pending' ? 'awaiting payment' : status,
+    status: status === 'pending' && type === 'buy' ? 'awaiting payment' : status,
     counterparty: order.buyer?.uid || order.seller?.uid || order.buyer?.name || order.seller?.name || order.counterparty || 'M3 Wallet verification',
     date: order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : order.date || 'Today',
     ...timeMeta,

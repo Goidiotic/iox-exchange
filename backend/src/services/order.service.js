@@ -13,6 +13,8 @@ import { platformSettingsService } from './platformSettings.service.js';
 
 const nextNo = (prefix) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
 const paymentAddressFor = (order) => `M3${String(order.orderNo).replace(/[^A-Z0-9]/gi, '')}${Math.round(order.inrAmount)}${Math.round(order.quantity)}9X7K4L2Q8P6N5R3T1V0Y`.slice(0, 34);
+const MIN_ORDER_QUANTITY = 100;
+const MAX_SELL_QUANTITY = 50000;
 
 const calculateQuickSellFees = (grossAmount, settings) => {
   const feeSettings = settings.quickSellFees || {};
@@ -45,12 +47,74 @@ const verifyTransactionPin = async (user, transactionPin) => {
   if (!isValid) throw new ApiError(400, 'Invalid transaction PIN');
 };
 
+const createRefundTransaction = (order, quantity, reason) => Transaction.findOneAndUpdate(
+  { externalReference: `REF-${order._id}-${reason}`, type: 'refund' },
+  {
+    $setOnInsert: {
+      transactionNo: nextNo('REF'),
+      user: order.seller?._id || order.seller,
+      order: order._id,
+      token: order.token?._id || order.token,
+      type: 'refund',
+      amountInr: quantity * (order.fixedPrice || 0),
+      tokenQuantity: quantity,
+      status: 'completed',
+      externalReference: `REF-${order._id}-${reason}`,
+      metadata: { reason },
+    },
+  },
+  { upsert: true, new: true },
+);
+
+const refundToSellerWallet = async (order, quantity, reason) => {
+  const refundQuantity = Number(quantity || 0);
+  if (refundQuantity <= 0) return;
+
+  const result = await TokenBalance.updateOne(
+    {
+      user: order.seller?._id || order.seller,
+      token: order.token?._id || order.token,
+      locked: { $gte: refundQuantity },
+    },
+    { $inc: { available: refundQuantity, locked: -refundQuantity } },
+  );
+  if (result.modifiedCount > 0) {
+    await createRefundTransaction(order, refundQuantity, reason);
+  }
+};
+
+const releaseBuyReservation = async (order, reason) => {
+  const parentOrder = order.parentOrder ? await Order.findById(order.parentOrder) : null;
+  const quantity = Number(order.quantity || 0);
+  if (!parentOrder) {
+    await refundToSellerWallet(order, quantity, reason);
+    return;
+  }
+
+  if (parentOrder.status === ORDER_STATUS.PENDING) {
+    await Order.updateOne(
+      { _id: parentOrder._id, escrowedQuantity: { $gte: quantity } },
+      { $inc: { availableQuantity: quantity, escrowedQuantity: -quantity, cancelledQuantity: quantity } },
+    );
+    return;
+  }
+
+  if (parentOrder) {
+    await Order.updateOne(
+      { _id: parentOrder._id, escrowedQuantity: { $gte: quantity } },
+      { $inc: { escrowedQuantity: -quantity, cancelledQuantity: quantity } },
+    );
+  }
+  await refundToSellerWallet(order, quantity, reason);
+};
+
 export const orderService = {
   listMarketOrders(query = {}) {
     return Order.find({
       status: ORDER_STATUS.PENDING,
       type: { $in: [ORDER_TYPES.SELL, ORDER_TYPES.FAST_TRACK_SELL] },
       availableQuantity: { $gt: 0 },
+      $or: [{ expiresAt: { $exists: false } }, { expiresAt: { $gt: new Date() } }],
       ...(query.token ? { token: query.token } : {}),
     })
       .populate('token seller', 'name symbol fixedPrice rewardPercentage uid referralCode')
@@ -85,6 +149,9 @@ export const orderService = {
     const token = await Token.findById(tokenId);
     if (!token || !token.active) throw new ApiError(404, 'Token not found');
     const sellQuantity = Number(quantity);
+    if (sellQuantity < MIN_ORDER_QUANTITY || sellQuantity > MAX_SELL_QUANTITY) {
+      throw new ApiError(400, `Sell quantity must be between ${MIN_ORDER_QUANTITY} and ${MAX_SELL_QUANTITY}`);
+    }
     const balance = await TokenBalance.findOneAndUpdate(
       { user: user._id, token: tokenId, available: { $gte: sellQuantity } },
       { $inc: { available: -sellQuantity, locked: sellQuantity } },
@@ -132,6 +199,8 @@ export const orderService = {
     if (parentOrder.expiresAt && parentOrder.expiresAt < new Date()) throw new ApiError(400, 'Sell order expired');
 
     const requestedQuantity = Number(quantity);
+    if (requestedQuantity < MIN_ORDER_QUANTITY) throw new ApiError(400, `Buy quantity must be at least ${MIN_ORDER_QUANTITY}`);
+    if (requestedQuantity > Number(parentOrder.availableQuantity || 0)) throw new ApiError(400, 'Requested token amount is not available');
     const reservedParent = await Order.findOneAndUpdate(
       {
         _id: parentOrder._id,
@@ -283,24 +352,7 @@ export const orderService = {
     ).populate('token seller buyer parentOrder');
     if (!order) throw new ApiError(404, 'Submitted payment order not found');
 
-    if (order.parentOrder) {
-      const parentOrder = await Order.findById(order.parentOrder);
-      if (parentOrder && parentOrder.status === ORDER_STATUS.PENDING) {
-        await Order.updateOne(
-          { _id: parentOrder._id },
-          { $inc: { availableQuantity: order.quantity, escrowedQuantity: -order.quantity } },
-        );
-      } else {
-        await Order.updateOne(
-          { _id: order.parentOrder },
-          { $inc: { escrowedQuantity: -order.quantity } },
-        );
-        await TokenBalance.updateOne(
-          { user: order.seller, token: order.token._id, locked: { $gte: order.quantity } },
-          { $inc: { available: order.quantity, locked: -order.quantity } },
-        );
-      }
-    }
+    await releaseBuyReservation(order, 'payment_rejected');
 
     await Transaction.updateOne({ order: order._id, type: 'buy' }, { status: 'failed' });
     await notificationService.notify(order.buyer, 'transaction', 'Payment rejected', reason || 'Your submitted payment details were rejected.', { orderId });
@@ -340,42 +392,24 @@ export const orderService = {
   },
 
   async cancelOrder(user, orderId) {
+    const now = new Date();
     const order = await Order.findOne({
       _id: orderId,
-      status: { $in: [ORDER_STATUS.PENDING, ORDER_STATUS.AWAITING_PAYMENT, ORDER_STATUS.PENDING_VERIFICATION, ORDER_STATUS.PROCESSING] },
+      status: { $in: [ORDER_STATUS.PENDING, ORDER_STATUS.AWAITING_PAYMENT, ORDER_STATUS.PENDING_VERIFICATION] },
       $or: [{ seller: user._id }, { buyer: user._id }],
     }).populate('token');
     if (!order) throw new ApiError(404, 'Cancellable order not found');
+    if (order.expiresAt && order.expiresAt <= now) throw new ApiError(400, 'Expired order cannot be cancelled manually');
+
     if (order.type === ORDER_TYPES.BUY && order.buyer?.equals(user._id)) {
-      const parentOrder = await Order.findById(order.parentOrder);
-      if (parentOrder && parentOrder.status === ORDER_STATUS.PENDING) {
-        await Order.updateOne(
-          { _id: parentOrder._id },
-          { $inc: { availableQuantity: order.quantity, escrowedQuantity: -order.quantity, cancelledQuantity: order.quantity } },
-        );
-      } else {
-        await Order.updateOne(
-          { _id: order.parentOrder },
-          { $inc: { escrowedQuantity: -order.quantity, cancelledQuantity: order.quantity } },
-        );
-        await TokenBalance.updateOne(
-          { user: order.seller, token: order.token._id, locked: { $gte: order.quantity } },
-          { $inc: { available: order.quantity, locked: -order.quantity } },
-        );
-      }
-    } else if (order.seller.equals(user._id)) {
-      if ((order.escrowedQuantity || 0) > 0) {
-        throw new ApiError(400, 'Cannot cancel this sell order while buy orders are active');
-      }
+      await releaseBuyReservation(order, 'buy_cancelled');
+    } else if ([ORDER_TYPES.SELL, ORDER_TYPES.FAST_TRACK_SELL].includes(order.type) && order.seller.equals(user._id)) {
       const refundQuantity = Number(order.availableQuantity || 0);
-      if (refundQuantity > 0) {
-        await TokenBalance.updateOne(
-          { user: order.seller, token: order.token._id, locked: { $gte: refundQuantity } },
-          { $inc: { available: refundQuantity, locked: -refundQuantity } },
-        );
-      }
-      order.expiredQuantity += refundQuantity;
+      await refundToSellerWallet(order, refundQuantity, 'sell_cancelled');
+      order.cancelledQuantity += refundQuantity;
       order.availableQuantity = 0;
+    } else {
+      throw new ApiError(403, 'Only the buyer can cancel this buy order');
     }
     order.status = ORDER_STATUS.CANCELLED;
     await order.save();
@@ -396,10 +430,7 @@ export const orderService = {
   async rejectOrder(admin, orderId, reason) {
     const order = await Order.findOne({ _id: orderId, status: ORDER_STATUS.PENDING_VERIFICATION }).populate('token seller');
     if (!order) throw new ApiError(404, 'Pending verification order not found');
-    await TokenBalance.updateOne(
-      { user: order.seller._id || order.seller, token: order.token._id },
-      { $inc: { available: order.quantity, locked: -order.quantity } },
-    );
+    await refundToSellerWallet(order, order.quantity, 'sell_rejected');
     order.status = ORDER_STATUS.REJECTED;
     order.verification = { reviewedBy: admin._id, reviewedAt: new Date(), rejectionReason: reason };
     await order.save();

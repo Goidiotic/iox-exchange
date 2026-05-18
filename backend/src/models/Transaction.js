@@ -6,7 +6,7 @@ const transactionSchema = new mongoose.Schema(
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     order: { type: mongoose.Schema.Types.ObjectId, ref: 'Order' },
     token: { type: mongoose.Schema.Types.ObjectId, ref: 'Token' },
-    type: { type: String, enum: ['buy', 'sell', 'reward', 'referral', 'coupon', 'wallet_settlement', 'fast_track_fee'], required: true, index: true },
+    type: { type: String, enum: ['buy', 'sell', 'refund', 'reward', 'referral', 'coupon', 'wallet_settlement', 'fast_track_fee'], required: true, index: true },
     amountInr: { type: Number, default: 0 },
     tokenQuantity: { type: Number, default: 0 },
     status: { type: String, enum: ['pending', 'completed', 'failed', 'reversed'], default: 'pending', index: true },

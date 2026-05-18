@@ -14,11 +14,11 @@ import { mockApi } from '../services/mockApi';
 import { useTradingStore } from '../stores/tradingStore';
 import { classNames, formatINR } from '../utils/format';
 
-const terminalStatuses = ['completed', 'cancelled', 'failed', 'expired'];
+const terminalStatuses = ['completed', 'cancelled', 'failed', 'expired', 'rejected'];
 const systemVerificationStatuses = ['processing', 'under review'];
 
 function getInitialStatus(order) {
-  if (order.status === 'verified pending' || order.status === 'pending') return 'awaiting payment';
+  if ((order.status === 'verified pending' || order.status === 'pending') && order.type === 'buy') return 'awaiting payment';
   return order.status || 'pending';
 }
 
@@ -66,13 +66,15 @@ export default function OrderDetailPage() {
 
   if (isLoading) return <Skeleton rows={2} />;
 
+  const clockExpired = Boolean(order.expiresAt && timer.expired && ['pending', 'awaiting payment', 'verified pending'].includes(status));
+  const displayStatus = clockExpired ? 'expired' : status;
   const side = order.type || 'buy';
   const isBuy = side === 'buy';
-  const isActionable = !terminalStatuses.includes(status);
+  const isActionable = !terminalStatuses.includes(displayStatus);
   const isBuyerView = isBuy && !order.isSubSell;
-  const isSystemVerification = systemVerificationStatuses.includes(status);
-  const canCancel = isActionable && !order.isSubSell && (!isSystemVerification || isBuyerView);
-  const progress = isActionable ? timer.progress : getStaticProgress(status, order);
+  const isSystemVerification = systemVerificationStatuses.includes(displayStatus);
+  const canCancel = isActionable && !timer.expired && !order.isSubSell && (!isSystemVerification || isBuyerView);
+  const progress = isActionable ? timer.progress : getStaticProgress(displayStatus, order);
   const timerLabel = isActionable ? timer.label : '0:00:00';
   const counterparty = order.counterparty || order.seller || 'Platform verified seller';
   const transactionId = order.transactionId || 'Pending assignment';
@@ -80,7 +82,7 @@ export default function OrderDetailPage() {
   const SideIcon = displayType === 'sub-sell' || !isBuy ? ArrowUpRight : ArrowDownLeft;
 
   const completeOrder = () => {
-    if (isBuy && status === 'awaiting payment') {
+    if (isBuy && displayStatus === 'awaiting payment') {
       navigate(`/payment/${order.id}`);
       return;
     }
@@ -97,7 +99,7 @@ export default function OrderDetailPage() {
 
   return (
     <>
-      <PageHeader title="Transaction Detail" eyebrow={order.id} action={<Badge status={status}>{status}</Badge>} />
+      <PageHeader title="Transaction Detail" eyebrow={order.id} action={<Badge status={displayStatus}>{displayStatus}</Badge>} />
 
       <Card hover={false} className="p-5">
         <div className="flex items-start gap-4">
@@ -111,7 +113,7 @@ export default function OrderDetailPage() {
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-xl font-semibold text-white">{displayType.toUpperCase()} {order.token.symbol}</h2>
-              <Badge status={status} className="capitalize">{status}</Badge>
+              <Badge status={displayStatus} className="capitalize">{displayStatus}</Badge>
             </div>
             <p className="mt-1 text-sm text-slate-400">{order.token.name}</p>
             <p className="mt-3 text-3xl font-semibold text-white">{formatINR(order.amount)}</p>
@@ -142,7 +144,7 @@ export default function OrderDetailPage() {
         )}
 
         <div className="mt-6 divide-y divide-transparent">
-          <DetailRow label="Status" value={status} strong />
+          <DetailRow label="Status" value={displayStatus} strong />
           {isSystemVerification && <DetailRow label="Verification" value="System is verifying payment details with M3 Wallet API" />}
           <DetailRow label="Order ID" value={order.id} />
           <DetailRow label="Transaction ID" value={transactionId} />
@@ -154,7 +156,7 @@ export default function OrderDetailPage() {
           <div className={classNames('mt-6 flex flex-wrap gap-3', isBuy ? 'justify-start' : 'justify-end')}>
             {isBuyerView && (
               <Button type="button" onClick={completeOrder}>
-                <CheckCircle2 size={16} /> {status === 'awaiting payment' ? 'Complete the order' : 'Complete'}
+                <CheckCircle2 size={16} /> {displayStatus === 'awaiting payment' ? 'Complete the order' : 'Complete'}
               </Button>
             )}
             <Button type="button" variant="secondary" onClick={cancelOrder}>

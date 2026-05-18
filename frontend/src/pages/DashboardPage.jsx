@@ -11,7 +11,7 @@ import { useMockQuery } from '../hooks/useMockQuery';
 import { mockApi } from '../services/mockApi';
 import { formatINR } from '../utils/format';
 
-const terminalStatuses = ['completed', 'cancelled'];
+const terminalStatuses = ['completed', 'cancelled', 'expired', 'failed', 'rejected'];
 
 const actions = [
   { label: 'Buy', to: '/market', icon: ShoppingCart, gradient: 'from-acid to-cyanx' },
@@ -141,7 +141,11 @@ export default function DashboardPage() {
     return <EmptyState title="Dashboard unavailable" body={error?.message || 'Please login again or try after the backend is ready.'} />;
   }
 
-  const pendingOrders = orders.filter((order) => !terminalStatuses.includes(order.status));
+  const pendingOrders = orders.filter((order) => {
+    if (terminalStatuses.includes(order.status)) return false;
+    if (order.expiresAt && new Date(order.expiresAt).getTime() <= Date.now()) return false;
+    return true;
+  });
   const nativeToken = data.tokens[0];
   const walletWorth = nativeToken.balance * nativeToken.price;
 
