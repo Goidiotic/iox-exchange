@@ -63,6 +63,15 @@ export const orderService = {
       .sort({ createdAt: -1 });
   },
 
+  listPaymentApprovals() {
+    return Order.find({
+      type: ORDER_TYPES.BUY,
+      status: ORDER_STATUS.UNDER_REVIEW,
+    })
+      .populate('token seller buyer parentOrder', 'name symbol fixedPrice rewardPercentage uid referralCode mobile orderNo status availableQuantity escrowedQuantity')
+      .sort({ updatedAt: -1 });
+  },
+
   async getOrder(user, orderId) {
     const order = await Order.findById(orderId).populate('token seller buyer parentOrder', 'name symbol fixedPrice rewardPercentage uid referralCode orderNo status availableQuantity escrowedQuantity');
     if (!order) throw new ApiError(404, 'Order not found');
@@ -178,7 +187,7 @@ export const orderService = {
     if (!order) throw new ApiError(404, 'Awaiting payment purchase order not found');
     if (order.expiresAt && order.expiresAt < new Date()) throw new ApiError(400, 'Purchase order expired');
 
-    order.status = ORDER_STATUS.PROCESSING;
+    order.status = ORDER_STATUS.UNDER_REVIEW;
     order.settlement = {
       ...order.settlement,
       m3TransactionId: transactionId,
@@ -196,7 +205,84 @@ export const orderService = {
       status: 'pending',
       externalReference: transactionId,
     });
-    await notificationService.notify(user._id, 'transaction', 'Payment received', 'Your payment is being verified automatically.', { orderId: order._id });
+    await notificationService.notify(user._id, 'transaction', 'Payment submitted', 'Your payment details are waiting for admin approval.', { orderId: order._id });
+    return order;
+  },
+
+  async approveSubmittedPayment(admin, orderId) {
+    const order = await Order.findOne({
+      _id: orderId,
+      type: ORDER_TYPES.BUY,
+      status: ORDER_STATUS.UNDER_REVIEW,
+    }).populate('token seller buyer parentOrder');
+    if (!order) throw new ApiError(404, 'Submitted payment order not found');
+
+    const session = await mongoose.startSession();
+    try {
+      await session.withTransaction(async () => {
+        order.status = ORDER_STATUS.COMPLETED;
+        order.settlement = {
+          ...order.settlement,
+          verifiedAt: new Date(),
+          reviewedBy: admin._id,
+        };
+        await order.save({ session });
+
+        await TokenBalance.updateOne(
+          { user: order.seller, token: order.token._id },
+          { $inc: { locked: -order.quantity } },
+          { session },
+        );
+
+        if (order.parentOrder) {
+          const parent = await Order.findById(order.parentOrder).session(session);
+          if (parent) {
+            parent.escrowedQuantity = Math.max((parent.escrowedQuantity || 0) - order.quantity, 0);
+            parent.completedQuantity = (parent.completedQuantity || 0) + order.quantity;
+            if ((parent.availableQuantity || 0) <= 0 && (parent.escrowedQuantity || 0) <= 0) {
+              parent.status = ORDER_STATUS.COMPLETED;
+              parent.expiresAt = new Date();
+            }
+            await parent.save({ session });
+          }
+        }
+
+        await TokenBalance.findOneAndUpdate(
+          { user: order.buyer, token: order.token._id },
+          { $inc: { available: order.quantity, rewards: (order.inrAmount * order.rewardPercentage) / 100 } },
+          { upsert: true, new: true, session },
+        );
+
+        await Transaction.updateOne({ order: order._id, type: 'buy' }, { status: 'completed' }, { session });
+      });
+      await notificationService.notify(order.buyer, 'transaction', 'Order completed', 'Your buy order was approved and coins were credited.', { orderId });
+      await notificationService.notify(order.seller, 'transaction', 'Sell order completed', 'Buyer payment was approved by admin.', { orderId });
+      return order.populate('token seller buyer parentOrder', 'name symbol fixedPrice rewardPercentage uid referralCode mobile orderNo status');
+    } finally {
+      session.endSession();
+    }
+  },
+
+  async rejectSubmittedPayment(admin, orderId, reason) {
+    const order = await Order.findOne({
+      _id: orderId,
+      type: ORDER_TYPES.BUY,
+      status: ORDER_STATUS.UNDER_REVIEW,
+    }).populate('token seller buyer parentOrder');
+    if (!order) throw new ApiError(404, 'Submitted payment order not found');
+
+    if (order.parentOrder) {
+      await Order.updateOne(
+        { _id: order.parentOrder },
+        { $inc: { availableQuantity: order.quantity, escrowedQuantity: -order.quantity } },
+      );
+    }
+
+    order.status = ORDER_STATUS.REJECTED;
+    order.verification = { reviewedBy: admin._id, reviewedAt: new Date(), rejectionReason: reason || 'Payment rejected by admin' };
+    await order.save();
+    await Transaction.updateOne({ order: order._id, type: 'buy' }, { status: 'failed' });
+    await notificationService.notify(order.buyer, 'transaction', 'Payment rejected', reason || 'Your submitted payment details were rejected.', { orderId });
     return order;
   },
 

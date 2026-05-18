@@ -25,7 +25,10 @@ export const adminController = {
       .populate('token seller', 'name symbol fixedPrice rewardPercentage mobile uid referralCode')
       .sort({ createdAt: -1 }),
   )),
+  paymentApprovals: asyncHandler(async (_req, res) => ok(res, await orderService.listPaymentApprovals())),
   approveOrder: asyncHandler(async (req, res) => ok(res, await orderService.approveOrder(req.user, req.params.orderId), 'Order approved')),
   rejectOrder: asyncHandler(async (req, res) => ok(res, await orderService.rejectOrder(req.user, req.params.orderId, req.body.reason), 'Order rejected')),
+  approvePayment: asyncHandler(async (req, res) => ok(res, await orderService.approveSubmittedPayment(req.user, req.params.orderId), 'Payment approved')),
+  rejectPayment: asyncHandler(async (req, res) => ok(res, await orderService.rejectSubmittedPayment(req.user, req.params.orderId, req.body.reason), 'Payment rejected')),
   transactions: asyncHandler(async (_req, res) => ok(res, await Transaction.find().sort({ createdAt: -1 }).limit(100))),
 };

@@ -76,22 +76,23 @@ function Stat({ label, value }) {
 function AdminShell({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(false);
-  const [data, setData] = useState({ users: [], orders: [], transactions: [], coupons: [], tokens: [], settings: null });
+  const [data, setData] = useState({ users: [], orders: [], paymentApprovals: [], transactions: [], coupons: [], tokens: [], settings: null });
   const [notice, setNotice] = useState('');
 
   const load = async () => {
     setLoading(true);
     setNotice('');
     try {
-      const [users, orders, transactions, coupons, tokens, settings] = await Promise.all([
+      const [users, orders, paymentApprovals, transactions, coupons, tokens, settings] = await Promise.all([
         adminApi.users(),
         adminApi.pendingOrders(),
+        adminApi.paymentApprovals(),
         adminApi.transactions(),
         adminApi.coupons(),
         adminApi.tokens(),
         adminApi.settings(),
       ]);
-      setData({ users, orders, transactions, coupons, tokens, settings });
+      setData({ users, orders, paymentApprovals, transactions, coupons, tokens, settings });
     } catch (err) {
       setNotice(err.message || 'Unable to load admin data');
     } finally {
@@ -120,6 +121,19 @@ function AdminShell({ user, onLogout }) {
       await load();
     } catch (err) {
       setNotice(err.message || 'Unable to update sell order');
+    }
+  };
+
+  const decidePayment = async (id, action) => {
+    setNotice('');
+    try {
+      const reason = action === 'reject' ? window.prompt('Payment rejection reason') || 'Payment rejected by admin' : undefined;
+      if (action === 'approve') await adminApi.approvePayment(id);
+      if (action === 'reject') await adminApi.rejectPayment(id, reason);
+      setNotice(action === 'approve' ? 'Payment approved and order completed' : 'Payment rejected and sell quantity released');
+      await load();
+    } catch (err) {
+      setNotice(err.message || 'Unable to update payment order');
     }
   };
 
@@ -160,7 +174,7 @@ function AdminShell({ user, onLogout }) {
 
         {notice && <div className="notice">{notice}</div>}
         {activeTab === 'overview' && <Overview stats={stats} data={data} />}
-        {activeTab === 'orders' && <Orders orders={data.orders} onDecision={decideOrder} />}
+        {activeTab === 'orders' && <Orders orders={data.orders} paymentApprovals={data.paymentApprovals} onDecision={decideOrder} onPaymentDecision={decidePayment} />}
         {activeTab === 'users' && <Users users={data.users} />}
         {activeTab === 'transactions' && <Transactions transactions={data.transactions} />}
         {activeTab === 'settings' && <Settings users={data.users} coupons={data.coupons} tokens={data.tokens} settings={data.settings} onSaved={load} />}
@@ -186,8 +200,9 @@ function Overview({ stats, data }) {
   );
 }
 
-function Orders({ orders, onDecision }) {
+function Orders({ orders, paymentApprovals, onDecision, onPaymentDecision }) {
   return (
+    <>
     <section className="panel">
       <div className="section-heading">
         <div>
@@ -229,6 +244,48 @@ function Orders({ orders, onDecision }) {
         {orders.length === 0 && <div className="empty">No pending verification orders.</div>}
       </div>
     </section>
+    <section className="panel">
+      <div className="section-heading">
+        <div>
+          <h2>Buyer Payment Approval</h2>
+          <p>Approve submitted buyer payment details to complete buyer and seller orders without M3 Wallet verification.</p>
+        </div>
+        <strong>{paymentApprovals.length} waiting</strong>
+      </div>
+      <div className="table">
+        <div className="row sell-order-row head">
+          <span>Buy Order</span>
+          <span>Buyer</span>
+          <span>Token Qty</span>
+          <span>Payment Ref</span>
+          <span>INR Value</span>
+          <span>Submitted</span>
+          <span>Actions</span>
+        </div>
+        {paymentApprovals.map((order) => (
+          <div className="row sell-order-row" key={order._id}>
+            <span>
+              <strong>{order.orderNo}</strong>
+              <small>Parent {order.parentOrder?.orderNo || '-'}</small>
+            </span>
+            <span>
+              <strong>{order.buyer?.mobile || '-'}</strong>
+              <small>{order.buyer?.uid || order.buyer?.referralCode || 'Buyer account'}</small>
+            </span>
+            <span>{Number(order.quantity || 0).toLocaleString('en-IN')} {order.token?.symbol || 'TOKEN'}</span>
+            <span>{order.settlement?.m3TransactionId || '-'}</span>
+            <span>{formatInr(order.inrAmount)}</span>
+            <span>{formatDate(order.settlement?.submittedAt || order.updatedAt)}</span>
+            <span className="actions">
+              <button className="mini success" onClick={() => onPaymentDecision(order._id, 'approve')}><CheckCircle2 size={15} />Approve</button>
+              <button className="mini danger" onClick={() => onPaymentDecision(order._id, 'reject')}><XCircle size={15} />Reject</button>
+            </span>
+          </div>
+        ))}
+        {paymentApprovals.length === 0 && <div className="empty">No buyer payments awaiting approval.</div>}
+      </div>
+    </section>
+    </>
   );
 }
 
