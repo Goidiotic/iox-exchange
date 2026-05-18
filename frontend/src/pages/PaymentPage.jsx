@@ -4,7 +4,6 @@ import toast from 'react-hot-toast';
 import { useNavigate, useParams } from 'react-router-dom';
 import Button from '../components/common/Button';
 import Card from '../components/common/Card';
-import PageHeader from '../components/common/PageHeader';
 import Skeleton from '../components/common/Skeleton';
 import { useMockQuery } from '../hooks/useMockQuery';
 import { usePreciseCountdown } from '../hooks/usePreciseCountdown';
@@ -58,11 +57,12 @@ export default function PaymentPage() {
 
   return (
     <>
-      <PageHeader
-        title="Payment Verification"
-        action={<span className={`font-mono text-sm font-semibold ${paymentTimer.expired ? 'text-red-300' : 'text-warn'}`}>Pay within {paymentTimer.label}</span>}
-      />
       <div className="mx-auto w-full max-w-md">
+        <div className="mb-3 flex justify-end">
+          <span className={`font-mono text-sm font-semibold ${paymentTimer.expired ? 'text-red-300' : 'text-warn'}`}>
+            Pay within {paymentTimer.label}
+          </span>
+        </div>
         <Card hover={false} className="p-4 sm:p-5">
           <div className="space-y-4">
             <div className="grid place-items-center rounded-lg border border-dashed border-cyanx/40 bg-cyanx/10 p-4">
@@ -88,16 +88,9 @@ export default function PaymentPage() {
             </div>
 
             <div className="panel p-4 text-sm text-slate-300">
-              <div className="flex justify-between gap-3">
-                <span>Payment amount</span>
-                <strong className="text-white">{formatINR(paymentAmount)}</strong>
-              </div>
-            </div>
-
-            <div className="panel p-4 text-sm text-slate-300">
-              <p className="flex items-center gap-2 text-sm font-semibold text-white">
-                <ShieldCheck size={16} className="text-acid" />
-                Pay the exact INR amount, then enter the transaction ID. Your order will move to processing after submission.
+              <p className="flex items-start gap-2 text-sm font-semibold leading-5 text-white">
+                <ShieldCheck size={17} className="mt-0.5 shrink-0 text-acid" />
+                <span>Pay the exact INR amount, then enter the transaction ID. Your order will move to processing after submission.</span>
               </p>
               <label className="mt-4 block text-xs font-semibold uppercase tracking-wider text-slate-400" htmlFor="transaction-id">
                 Transaction ID
