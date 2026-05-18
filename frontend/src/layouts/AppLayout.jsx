@@ -163,16 +163,21 @@ function AppHeader({ isMainPage, title }) {
 export default function AppLayout() {
   const { pathname } = useLocation();
   const isMainPage = mainPaths.has(pathname);
+  const isPinScreen = pathname === '/sell/pin';
   const innerPageTitle = getInnerPageTitle(pathname);
 
   return (
-    <div className="min-h-screen overflow-x-hidden lg:grid lg:grid-cols-[280px_1fr]">
-      <div className="hidden lg:block">
+    <div className={classNames('min-h-screen overflow-x-hidden', !isPinScreen && 'lg:grid lg:grid-cols-[280px_1fr]')}>
+      <div className={classNames('hidden', !isPinScreen && 'lg:block')}>
         <Sidebar />
       </div>
       <main className="min-w-0 overflow-x-hidden">
-        <AppHeader isMainPage={isMainPage} title={innerPageTitle} />
-        <div className={classNames('mx-auto max-w-7xl overflow-x-hidden px-4 pt-6 sm:px-6 lg:px-8 lg:pb-8', isMainPage ? 'pb-28' : 'pb-8')}>
+        {!isPinScreen && <AppHeader isMainPage={isMainPage} title={innerPageTitle} />}
+        <div className={classNames(
+          'mx-auto overflow-x-hidden px-4 sm:px-6',
+          isPinScreen ? 'max-w-[430px] px-3 pb-4 pt-4 sm:px-4' : 'max-w-7xl pt-6 lg:px-8 lg:pb-8',
+          isMainPage ? 'pb-28' : 'pb-8',
+        )}>
           <Outlet />
         </div>
       </main>

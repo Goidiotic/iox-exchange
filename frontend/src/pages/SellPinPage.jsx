@@ -69,8 +69,8 @@ export default function SellPinPage() {
   };
 
   return (
-    <div className="mx-auto max-w-md">
-      <Card hover={false} className="p-5">
+    <div className="mx-auto w-full max-w-[390px]">
+      <Card hover={false} className="p-4">
         <div className="text-center">
           <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-acid/15 text-acid">
             <ShieldCheck size={24} />
@@ -93,7 +93,7 @@ export default function SellPinPage() {
               type="button"
               disabled={!key}
               onClick={() => pressKey(key)}
-              className="grid aspect-square place-items-center rounded-lg border border-line bg-white/[0.045] text-xl font-semibold text-white transition hover:border-acid/60 hover:bg-acid/10 disabled:opacity-0"
+              className="grid aspect-square place-items-center rounded-lg border border-line bg-white/[0.045] text-xl font-semibold text-white outline-none disabled:opacity-0"
               aria-label={key === 'back' ? 'Delete digit' : key || 'Blank'}
             >
               {key === 'back' ? <Delete size={22} /> : key}
