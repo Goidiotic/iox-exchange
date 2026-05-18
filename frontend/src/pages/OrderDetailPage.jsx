@@ -75,7 +75,7 @@ export default function OrderDetailPage() {
   const isActionable = !terminalStatuses.includes(displayStatus);
   const isBuyerView = isBuy && !order.isSubSell;
   const isSystemVerification = systemVerificationStatuses.includes(displayStatus);
-  const canCancel = isActionable && !timer.expired && !order.isSubSell && (!isSystemVerification || isBuyerView);
+  const canCancel = isActionable && !clockExpired && !order.isSubSell && (!isSystemVerification || isBuyerView);
   const progress = isActionable ? timer.progress : getStaticProgress(displayStatus, order);
   const timerLabel = isActionable ? timer.label : '0:00:00';
   const counterparty = order.counterparty || order.seller || 'Platform verified seller';
@@ -94,18 +94,23 @@ export default function OrderDetailPage() {
   };
 
   const cancelOrder = async () => {
-    await mockApi.cancelOrder(order.id);
-    setOrderStatus(order.id, 'cancelled');
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
-      queryClient.invalidateQueries({ queryKey: ['market-wallet-summary'] }),
-      queryClient.invalidateQueries({ queryKey: ['sell-wallet-summary'] }),
-      queryClient.invalidateQueries({ queryKey: ['account-wallet-summary'] }),
-      queryClient.invalidateQueries({ queryKey: ['user-orders'] }),
-      queryClient.invalidateQueries({ queryKey: ['dashboard-user-orders'] }),
-      queryClient.invalidateQueries({ queryKey: ['market'] }),
-    ]);
-    toast.success('Order cancelled');
+    try {
+      await mockApi.cancelOrder(order.id);
+      setOrderStatus(order.id, 'cancelled');
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
+        queryClient.invalidateQueries({ queryKey: ['market-wallet-summary'] }),
+        queryClient.invalidateQueries({ queryKey: ['sell-wallet-summary'] }),
+        queryClient.invalidateQueries({ queryKey: ['account-wallet-summary'] }),
+        queryClient.invalidateQueries({ queryKey: ['user-orders'] }),
+        queryClient.invalidateQueries({ queryKey: ['dashboard-user-orders'] }),
+        queryClient.invalidateQueries({ queryKey: ['market'] }),
+        queryClient.invalidateQueries({ queryKey: ['order', order.id] }),
+      ]);
+      toast.success('Order cancelled');
+    } catch (error) {
+      toast.error(error.message || 'Unable to cancel order');
+    }
   };
 
   return (
