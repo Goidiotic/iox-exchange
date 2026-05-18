@@ -9,3 +9,5 @@ frontend/dist/
 admin/dist/
 M3 Wallet/
 Private Keys/
+release/
+release.tar.gz
