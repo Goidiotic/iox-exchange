@@ -132,6 +132,54 @@ function PendingOrderRow({ order, index }) {
   );
 }
 
+function SupplyStatistics({ token }) {
+  const maxSupply = 10000000000;
+  const symbol = token.symbol || 'COIN';
+
+  const rows = [
+    { label: 'Circulating', value: 3542200432, percent: 35.42, color: 'text-acid', dot: 'bg-acid' },
+    { label: 'Burnt', value: 257799567.98, percent: 2.57, color: 'text-violet-400', dot: 'bg-violet-400' },
+    { label: 'Locked', value: 6200000000, percent: 62, color: 'text-warn', dot: 'bg-warn' },
+  ];
+  const circulatingPercent = rows[0].percent;
+  const burntPercent = rows[1].percent;
+
+  return (
+    <Card hover={false} className="p-4">
+      <div className="grid gap-4 sm:grid-cols-[0.95fr_1.05fr] sm:items-center">
+        <div className="rounded-lg border border-line bg-white/[0.035] p-4 text-center">
+          <div
+            className="mx-auto grid h-36 w-36 place-items-center rounded-full"
+            style={{
+              background: `conic-gradient(#31f59f 0 ${circulatingPercent}%, #8b5cf6 ${circulatingPercent}% ${circulatingPercent + burntPercent}%, #ff9f1c ${circulatingPercent + burntPercent}% 100%)`,
+            }}
+          >
+            <div className="h-24 w-24 rounded-full bg-panel" />
+          </div>
+          <p className="mt-4 text-lg font-black text-acid">${symbol} Supply</p>
+          <p className="mt-1 text-sm font-semibold text-slate-400">(Max.Supply)</p>
+          <p className="mt-2 text-xl font-black text-white">{maxSupply.toLocaleString('en-IN')} {symbol}</p>
+        </div>
+
+        <div className="grid gap-4">
+          {rows.map((row) => (
+            <div key={row.label} className="grid gap-1">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className={`h-3 w-3 shrink-0 rounded-full ${row.dot}`} />
+                  <span className="truncate text-sm font-semibold text-slate-400">{row.label}</span>
+                </div>
+                <strong className={`text-sm ${row.color}`}>{row.percent.toFixed(2)}%</strong>
+              </div>
+              <p className={`text-lg font-black ${row.color}`}>{row.value.toLocaleString('en-IN')} <span className="text-white">{symbol}</span></p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 export default function DashboardPage() {
   const { data, isLoading, isError, error } = useMockQuery('dashboard', mockApi.dashboard);
   const { data: orders = [], isLoading: ordersLoading } = useMockQuery('dashboard-user-orders', mockApi.userOrders);
@@ -179,6 +227,8 @@ export default function DashboardPage() {
           </Link>
         ))}
       </div>
+
+      <SupplyStatistics token={nativeToken} />
 
       <section>
         <div className="mb-3 flex items-center justify-between">
