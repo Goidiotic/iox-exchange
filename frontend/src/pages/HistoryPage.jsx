@@ -18,7 +18,7 @@ export default function HistoryPage() {
             <input className="field" placeholder="Search transaction ID" />
           </FormField>
           <FormField label="Transaction type">
-            <select className="field"><option>All types</option><option>Buy</option><option>Sell</option><option>Reward</option></select>
+            <select className="field"><option>All types</option><option>Buy</option><option>Sell</option><option>Reward</option><option>Coupon</option></select>
           </FormField>
           <FormField label="Status">
             <select className="field"><option>All statuses</option><option>Completed</option><option>Pending</option></select>

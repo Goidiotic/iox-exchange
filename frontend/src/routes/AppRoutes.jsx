@@ -11,6 +11,9 @@ import OrdersPage from '../pages/OrdersPage';
 import OrderDetailPage from '../pages/OrderDetailPage';
 import PaymentPage from '../pages/PaymentPage';
 import SellWaitingPage from '../pages/SellWaitingPage';
+import SellPage from '../pages/SellPage';
+import SellConfirmPage from '../pages/SellConfirmPage';
+import SellPinPage from '../pages/SellPinPage';
 import WalletPage from '../pages/WalletPage';
 import CouponsPage from '../pages/CouponsPage';
 import ReferralsPage from '../pages/ReferralsPage';
@@ -42,6 +45,9 @@ export default function AppRoutes() {
             <Route path="/orders" element={<OrdersPage />} />
             <Route path="/orders/:orderId" element={<OrderDetailPage />} />
             <Route path="/payment/:orderId" element={<PaymentPage />} />
+            <Route path="/sell" element={<SellPage />} />
+            <Route path="/sell/confirm" element={<SellConfirmPage />} />
+            <Route path="/sell/pin" element={<SellPinPage />} />
             <Route path="/sell-waiting" element={<SellWaitingPage />} />
             <Route path="/wallet" element={<WalletPage />} />
             <Route path="/coupons" element={<CouponsPage />} />

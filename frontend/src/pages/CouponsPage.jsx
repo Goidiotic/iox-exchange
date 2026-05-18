@@ -13,7 +13,7 @@ import { mockApi } from '../services/mockApi';
 const formatDate = (value) => (value ? new Date(value).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-');
 
 const statusFor = (coupon) => {
-  if (coupon.redeemed) return 'completed';
+  if (coupon.redeemed) return 'redeemed';
   if (!coupon.active || new Date(coupon.expiresAt) < new Date()) return 'expired';
   return 'active';
 };
@@ -65,9 +65,11 @@ export default function CouponsPage() {
                   <p className="flex items-center gap-2"><Clock size={15} />Valid till {formatDate(coupon.expiresAt)}</p>
                 </div>
 
-                <Button className="mt-auto w-full" disabled={!canRedeem} onClick={() => redeem(coupon)}>
-                  {coupon.redeemed ? 'Credited to Wallet' : canRedeem ? 'Redeem to Wallet' : 'Not Available'}
-                </Button>
+                {canRedeem && (
+                  <Button className="mt-auto w-full" onClick={() => redeem(coupon)}>
+                    Redeem to Wallet
+                  </Button>
+                )}
               </Card>
             );
           })}

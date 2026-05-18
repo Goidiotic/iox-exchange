@@ -1,4 +1,4 @@
-import { CheckCircle2, ShieldCheck, Timer, WalletCards } from 'lucide-react';
+import { ShieldCheck, WalletCards } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -16,13 +16,7 @@ import { formatINR } from '../utils/format';
 
 export default function MarketPage() {
   const { orderMode, setOrderMode, selectedTokenId } = useTradingStore();
-  const [sellType, setSellType] = useState('manual');
   const [sizeFilter, setSizeFilter] = useState('all');
-  const [sellAmount, setSellAmount] = useState('');
-  const [sellStep, setSellStep] = useState('entry');
-  const [transactionPin, setTransactionPin] = useState('');
-  const [sellError, setSellError] = useState('');
-  const [creatingSell, setCreatingSell] = useState(false);
   const [purchaseOrder, setPurchaseOrder] = useState(null);
   const [purchaseQuantity, setPurchaseQuantity] = useState('');
   const [purchaseError, setPurchaseError] = useState('');
@@ -31,27 +25,7 @@ export default function MarketPage() {
   const navigate = useNavigate();
   const { data = [], isLoading } = useMockQuery('market', mockApi.market);
   const { data: walletSummary, isLoading: walletLoading } = useMockQuery('market-wallet-summary', mockApi.walletSummary);
-  const { data: platformSettings } = useMockQuery('platform-settings', mockApi.platformSettings);
   const token = walletSummary?.tokens?.find((item) => item.id === selectedTokenId || item.symbol?.toLowerCase() === selectedTokenId) || walletSummary?.tokens?.[0] || TOKENS[0];
-  const amount = Number(sellAmount || 0);
-  const inrTotal = amount * (token.price || 0);
-  const quickSellFees = platformSettings?.quickSellFees || {
-    processingFeePercentage: 0.5,
-    burnPercentage: 1,
-    paymentGatewayPercentage: 2,
-  };
-  const quickFeeRows = [
-    ['Processing Fees', quickSellFees.processingFeePercentage],
-    ['Quick Sell Burn', quickSellFees.burnPercentage],
-    ['Payment Gateway Charge', quickSellFees.paymentGatewayPercentage],
-  ].map(([label, percentage]) => ({
-    label,
-    percentage: Number(percentage || 0),
-    amount: (inrTotal * Number(percentage || 0)) / 100,
-  }));
-  const quickFeeTotal = quickFeeRows.reduce((sum, fee) => sum + fee.amount, 0);
-  const netReceiveValue = sellType === 'quick' ? inrTotal - quickFeeTotal : inrTotal;
-  const canSell = amount > 0 && amount <= (token.balance || 0);
   const visibleOrders = data
     .filter((order) => ['awaiting payment', 'pending', 'verified pending'].includes(order.status) && order.token.id === token.id)
     .sort((a, b) => {
@@ -59,65 +33,6 @@ export default function MarketPage() {
       if (sizeFilter === 'large') return b.amount - a.amount;
       return 0;
     });
-
-  const resetSellFlow = () => {
-    setSellStep('entry');
-    setTransactionPin('');
-    setSellError('');
-  };
-
-  const startSell = async () => {
-    setSellError('');
-    if (!canSell) {
-      setSellError('Enter a token amount within your available balance.');
-      return;
-    }
-    try {
-      const status = await mockApi.transactionPinStatus();
-      if (!status.hasTransactionPin) {
-        toast('Create your Transaction PIN before selling');
-        navigate('/transaction-pin', { state: { from: '/market' } });
-        return;
-      }
-      setSellStep('confirm');
-    } catch (error) {
-      setSellError(error.message || 'Unable to check Transaction PIN status');
-    }
-  };
-
-  const createSellOrder = async () => {
-    setSellError('');
-    if (!transactionPin.trim()) {
-      setSellError('Enter your transaction PIN to continue.');
-      return;
-    }
-    setCreatingSell(true);
-    try {
-      await mockApi.createSellOrder({
-        tokenId: token.id,
-        quantity: amount,
-        mode: sellType,
-        transactionPin,
-      });
-      toast.success('Sell order sent for admin verification');
-      setSellAmount('');
-      resetSellFlow();
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['market'] }),
-        queryClient.invalidateQueries({ queryKey: ['market-wallet-summary'] }),
-        queryClient.invalidateQueries({ queryKey: ['user-orders'] }),
-      ]);
-    } catch (error) {
-      if (error.details?.code === 'TRANSACTION_PIN_REQUIRED') {
-        toast('Create your Transaction PIN before selling');
-        navigate('/transaction-pin', { state: { from: '/market' } });
-        return;
-      }
-      setSellError(error.message || 'Unable to create sell order');
-    } finally {
-      setCreatingSell(false);
-    }
-  };
 
   const openPurchaseWindow = (order) => {
     setPurchaseOrder(order);
@@ -221,114 +136,19 @@ export default function MarketPage() {
           </div>
         )
       ) : (
-        <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr]">
-          <Card hover={false}>
-            <h2 className="font-semibold">Sell {token.name}</h2>
-            <div className="mt-4 space-y-4">
-              <div className="panel flex items-center justify-between p-3">
-                <span className="text-sm text-slate-400">Available balance</span>
-                <span className="font-semibold">
-                  {walletLoading ? 'Loading...' : `${Number(token.balance || 0).toLocaleString('en-IN')} ${token.symbol}`}
-                </span>
-              </div>
-              <FormField label="Token amount">
-                <input
-                  className="field"
-                  inputMode="decimal"
-                  placeholder="Token amount"
-                  value={sellAmount}
-                  onChange={(event) => {
-                    setSellAmount(event.target.value);
-                    resetSellFlow();
-                  }}
-                />
-              </FormField>
-              {amount > 0 && (
-                <div className="panel grid gap-2 p-3 text-sm text-slate-300">
-                  <div className="flex justify-between"><span>Token price</span><strong className="text-white">{formatINR(token.price)}</strong></div>
-                  <div className="flex justify-between"><span>Gross value</span><strong className="text-white">{formatINR(inrTotal)}</strong></div>
-                  {sellType === 'quick' && quickFeeRows.map((fee) => (
-                    <div className="flex justify-between" key={fee.label}>
-                      <span>{fee.label} ({fee.percentage}%)</span>
-                      <strong className="text-warn">-{formatINR(fee.amount)}</strong>
-                    </div>
-                  ))}
-                  <div className="flex justify-between"><span>Total receive value</span><strong className="text-acid">{formatINR(netReceiveValue)}</strong></div>
-                </div>
-              )}
-              <div className="grid gap-3 sm:grid-cols-2">
-                <button onClick={() => setSellType('manual')} className={`panel p-4 text-left ${sellType === 'manual' ? 'border-acid' : ''}`}>
-                  <CheckCircle2 className="text-acid" />
-                  <p className="mt-3 font-semibold">Manual</p>
-                  <p className="mt-1 text-sm text-slate-400">Sell through the marketplace with admin verification and rewards.</p>
-                </button>
-                <button onClick={() => setSellType('quick')} className={`panel p-4 text-left ${sellType === 'quick' ? 'border-cyanx' : ''}`}>
-                  <Timer className="text-cyanx" />
-                  <p className="mt-3 font-semibold">Quick Sell</p>
-                  <p className="mt-1 text-sm text-slate-400">Instant-style sell with no rewards and admin-managed fees.</p>
-                </button>
-              </div>
-              {sellStep === 'confirm' && (
-                <div className="panel space-y-3 border-acid/60 p-4">
-                  <div>
-                    <h3 className="font-semibold text-white">Sell Confirmation</h3>
-                    <p className="mt-1 text-sm text-slate-400">Review the details before transaction PIN verification.</p>
-                  </div>
-                  <div className="grid gap-2 text-sm">
-                    <div className="flex justify-between"><span className="text-slate-400">Amount</span><strong>{amount.toLocaleString('en-IN')} {token.symbol}</strong></div>
-                    <div className="flex justify-between"><span className="text-slate-400">Mode</span><strong className="capitalize">{sellType}</strong></div>
-                    <div className="flex justify-between"><span className="text-slate-400">Gross INR value</span><strong>{formatINR(inrTotal)}</strong></div>
-                    {sellType === 'quick' && (
-                      <>
-                        <div className="flex justify-between"><span className="text-slate-400">Total fees</span><strong className="text-warn">-{formatINR(quickFeeTotal)}</strong></div>
-                        <div className="flex justify-between"><span className="text-slate-400">Net receive value</span><strong className="text-acid">{formatINR(netReceiveValue)}</strong></div>
-                      </>
-                    )}
-                    <div className="flex justify-between"><span className="text-slate-400">Balance after sell</span><strong>{Number((token.balance || 0) - amount).toLocaleString('en-IN')} {token.symbol}</strong></div>
-                  </div>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <Button type="button" variant="ghost" onClick={resetSellFlow}>Edit</Button>
-                    <Button type="button" onClick={() => setSellStep('pin')}>Confirm Sell</Button>
-                  </div>
-                </div>
-              )}
-              {sellStep === 'pin' && (
-                <div className="panel space-y-3 border-cyanx/60 p-4">
-                  <FormField label="Transaction PIN">
-                    <input
-                      className="field"
-                      inputMode="numeric"
-                      type="password"
-                      placeholder="Enter transaction PIN"
-                      value={transactionPin}
-                      onChange={(event) => setTransactionPin(event.target.value)}
-                    />
-                  </FormField>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <Button type="button" variant="ghost" onClick={() => setSellStep('confirm')}>Back</Button>
-                    <Button type="button" onClick={createSellOrder} disabled={creatingSell}>
-                      {creatingSell ? 'Verifying...' : 'Verify & Create Sell'}
-                    </Button>
-                  </div>
-                </div>
-              )}
-              {sellError && <div className="rounded-lg border border-danger/40 bg-danger/10 p-3 text-sm text-danger">{sellError}</div>}
-              {sellStep === 'entry' && (
-                <Button className="w-full" onClick={startSell} disabled={walletLoading}>
-                  <WalletCards size={16} />Start Sell
-                </Button>
-              )}
+        <Card hover={false} className="p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="font-semibold text-white">Sell {token.name}</h2>
+              <p className="mt-1 text-sm text-slate-400">
+                {walletLoading ? 'Loading wallet...' : `Available ${Number(token.balance || 0).toLocaleString('en-IN')} ${token.symbol}`}
+              </p>
             </div>
-          </Card>
-          <Card hover={false}>
-            <h2 className="font-semibold">Sell rules</h2>
-            <div className="mt-4 grid gap-3">
-              {['Token prices are managed from the admin panel.', 'Manual verification-stage orders remain hidden from buyers.', 'Quick Sell has no rewards and applies processing, burn and payment gateway fees.', 'INR settlement is handled through M3 Wallet APIs.'].map((item) => (
-                <p className="panel p-3 text-sm text-slate-300" key={item}>{item}</p>
-              ))}
-            </div>
-          </Card>
-        </div>
+            <Button onClick={() => navigate('/sell')} disabled={walletLoading}>
+              <WalletCards size={16} /> Start Sell
+            </Button>
+          </div>
+        </Card>
       )}
 
       {purchaseOrder && (

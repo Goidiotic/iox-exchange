@@ -150,11 +150,15 @@ export const mockApi = {
       apiClient.get('/transactions'),
       apiClient.get('/orders/me'),
     ]);
-    const txRows = unwrap(transactions).map((tx) => ({
+    const transactionPayload = unwrap(transactions);
+    const transactionRows = Array.isArray(transactionPayload) ? transactionPayload : transactionPayload.rows || [];
+    const txRows = transactionRows.map((tx) => ({
       id: tx.transactionNo || tx._id,
       type: tx.type,
       token: tx.token?.symbol || tx.tokenSymbol || '-',
-      amount: tx.amountInr ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(tx.amountInr) : `${tx.tokenQuantity || 0}`,
+      amount: tx.amountInr
+        ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(tx.amountInr)
+        : `${tx.tokenQuantity || 0} ${tx.token?.symbol || ''}`.trim(),
       status: tx.status,
       date: tx.createdAt ? new Date(tx.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-',
     }));
