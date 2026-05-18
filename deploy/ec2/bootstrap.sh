@@ -21,6 +21,7 @@ sudo chown -R "$USER:$USER" "${APP_ROOT}"
 
 sudo cp "$(dirname "$0")/nginx.conf" "/etc/nginx/sites-available/${APP_NAME}"
 sudo sed -i "s/__DOMAIN__/${DOMAIN}/g; s#__APP_ROOT__#${APP_ROOT}#g" "/etc/nginx/sites-available/${APP_NAME}"
+sudo rm -f /etc/nginx/sites-enabled/default
 sudo ln -sfn "/etc/nginx/sites-available/${APP_NAME}" "/etc/nginx/sites-enabled/${APP_NAME}"
 sudo nginx -t
 sudo systemctl reload nginx
