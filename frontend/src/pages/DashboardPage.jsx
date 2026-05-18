@@ -151,20 +151,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-5 overflow-x-hidden">
-      <BannerSlider token={nativeToken} />
-
-      <div className="grid grid-cols-4 gap-2">
-        {actions.map((action) => (
-          <Link key={action.label} to={action.to} className="min-w-0">
-            <div className="flex flex-col items-center gap-2 rounded-lg border border-line bg-white/[0.035] px-2 py-3 transition hover:border-cyanx/50 hover:bg-white/[0.06]">
-              <div className={`grid h-11 w-11 place-items-center rounded-full bg-gradient-to-br ${action.gradient} text-ink shadow-blue`}>
-                <action.icon size={19} />
-              </div>
-              <p className="text-xs font-medium text-slate-300">{action.label}</p>
-            </div>
-          </Link>
-        ))}
-      </div>
+      {false && <BannerSlider token={nativeToken} />}
 
       <Card hover={false} className="p-4">
         <div className="flex items-center justify-between gap-4">
@@ -179,6 +166,19 @@ export default function DashboardPage() {
           </div>
         </div>
       </Card>
+
+      <div className="grid grid-cols-4 gap-2">
+        {actions.map((action) => (
+          <Link key={action.label} to={action.to} className="min-w-0">
+            <div className="flex flex-col items-center gap-2 rounded-lg border border-line bg-white/[0.035] px-2 py-3 transition hover:border-cyanx/50 hover:bg-white/[0.06]">
+              <div className={`grid h-11 w-11 place-items-center rounded-full bg-gradient-to-br ${action.gradient} text-ink shadow-blue`}>
+                <action.icon size={19} />
+              </div>
+              <p className="text-xs font-medium text-slate-300">{action.label}</p>
+            </div>
+          </Link>
+        ))}
+      </div>
 
       <section>
         <div className="mb-3 flex items-center justify-between">
