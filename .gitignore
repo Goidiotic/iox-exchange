@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+*.log
+
+backend/logs/
+backend/uploads/
+frontend/dist/
+admin/dist/
+M3 Wallet/

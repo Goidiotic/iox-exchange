@@ -1,0 +1,76 @@
+name: Deploy to AWS EC2
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: true
+
+env:
+  APP_NAME: iox-exchange
+  RELEASE_DIR: /tmp/iox-exchange-release
+  VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || '/api/v1' }}
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Prepare release
+        run: |
+          rm -rf release release.tar.gz
+          mkdir -p release/backend release/frontend release/deploy
+          rsync -a backend/ release/backend/ \
+            --exclude node_modules \
+            --exclude .env \
+            --exclude logs \
+            --exclude uploads
+          rsync -a frontend/dist/ release/frontend/
+          rsync -a deploy/ec2/ release/deploy/
+          tar -czf release.tar.gz -C release .
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/ec2_key
+          chmod 600 ~/.ssh/ec2_key
+          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Upload release
+        run: |
+          ssh -i ~/.ssh/ec2_key "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" "rm -rf '${RELEASE_DIR}' && mkdir -p '${RELEASE_DIR}'"
+          scp -i ~/.ssh/ec2_key release.tar.gz "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:${RELEASE_DIR}/release.tar.gz"
+
+      - name: Deploy on EC2
+        run: |
+          ssh -i ~/.ssh/ec2_key "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" \
+            "cd '${RELEASE_DIR}' && tar -xzf release.tar.gz && chmod +x deploy/deploy.sh && APP_NAME='${APP_NAME}' deploy/deploy.sh"
