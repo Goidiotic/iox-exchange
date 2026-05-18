@@ -131,7 +131,7 @@ function AppHeader({ isMainPage, title }) {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-line bg-ink/75 px-4 backdrop-blur-xl sm:px-6">
+    <header className="fixed inset-x-0 top-0 z-50 flex h-20 items-center justify-between border-b border-line bg-ink/95 px-4 backdrop-blur-xl sm:px-6 lg:sticky lg:inset-x-auto lg:h-16 lg:bg-ink/75">
       {isMainPage ? (
         <>
           <div className="flex items-center gap-3 lg:hidden">
@@ -175,7 +175,7 @@ export default function AppLayout() {
         {!isPinScreen && <AppHeader isMainPage={isMainPage} title={innerPageTitle} />}
         <div className={classNames(
           'mx-auto overflow-x-hidden px-4 sm:px-6',
-          isPinScreen ? 'max-w-[430px] px-3 pb-4 pt-4 sm:px-4' : 'max-w-7xl pt-6 lg:px-8 lg:pb-8',
+          isPinScreen ? 'max-w-[430px] px-3 pb-4 pt-4 sm:px-4' : 'max-w-7xl pt-24 lg:px-8 lg:pb-8 lg:pt-6',
           isMainPage ? 'pb-28' : 'pb-8',
         )}>
           <Outlet />
