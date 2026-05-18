@@ -180,6 +180,34 @@ function SupplyStatistics({ token }) {
   );
 }
 
+function DashboardStats() {
+  const stats = [
+    { label: 'ONLINE', period: 'Last 24h', value: '1,16,592' },
+    { label: 'REWARDS EARN', period: 'Last 24h', value: '₹24,06,911.692' },
+    { label: 'Volume', period: 'Last 24h', value: '₹7,58,44,019.494' },
+    { label: 'USERS', period: 'Total', value: '49,99,162' },
+  ];
+
+  return (
+    <section className="overflow-hidden rounded-lg border border-line bg-white/[0.045]">
+      <div className="grid grid-cols-2">
+        {stats.map((item, index) => (
+          <div
+            key={item.label}
+            className={`min-h-28 p-4 ${index % 2 === 1 ? 'border-l border-line' : ''} ${index > 1 ? 'border-t border-line' : ''}`}
+          >
+            <div className="flex items-baseline justify-between gap-2">
+              <h2 className="truncate text-sm font-black uppercase text-acid sm:text-base">{item.label}</h2>
+              <span className="shrink-0 text-xs font-semibold text-slate-600">{item.period}</span>
+            </div>
+            <p className="mt-7 break-words text-xl font-black leading-tight text-white sm:text-2xl">{item.value}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function DashboardPage() {
   const { data, isLoading, isError, error } = useMockQuery('dashboard', mockApi.dashboard);
   const { data: orders = [], isLoading: ordersLoading } = useMockQuery('dashboard-user-orders', mockApi.userOrders);
@@ -228,7 +256,8 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <SupplyStatistics token={nativeToken} />
+      {false && <SupplyStatistics token={nativeToken} />}
+      <DashboardStats />
 
       <section>
         <div className="mb-3 flex items-center justify-between">
